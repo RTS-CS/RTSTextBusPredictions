@@ -166,6 +166,8 @@ def check_rate_limit(user_id: str) -> bool:
 # This section defines the Flask routes for the web interface, allowing
 # users to input a stop ID and view bus predictions.
 
+import re
+
 # Light LLM-style function: Smartly extract stop ID from messy user input
 def smart_extract_stop_id(text: str) -> str:
     """Extracts a valid 1-4 digit stop ID from messy input."""
@@ -225,11 +227,10 @@ def web_home():
         user_input = request.form.get("stop_id", "").strip()
         stop_id = smart_extract_stop_id(user_input)
         if stop_id:
-            result = get_prediction(stop_id, web_mode=True)
-            if isinstance(result, str):
-                predictions = [result]
-            else:
-                predictions = result
+            predictions = get_prediction(stop_id, web_mode=True)
+            if not predictions:  # If empty list from API
+                error = "❗ No buses expected at this stop in the next 45 minutes."
+                predictions = None
         else:
             error = "❗ Please enter a valid 1-4 digit bus stop number."
     return render_template_string(HTML_TEMPLATE, predictions=predictions, error=error)
