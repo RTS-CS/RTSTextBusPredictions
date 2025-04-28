@@ -10,6 +10,7 @@ from flask import Flask, request, render_template_string
 # You already imported Flask and request ✅
 # Now also import render_template_string for simple HTML inside Python
 
+app = Flask(__name__)  # Initialize the Flask application with the current module name.
 @app.route("/", methods=["GET", "POST"])
 def home():
     prediction = None
