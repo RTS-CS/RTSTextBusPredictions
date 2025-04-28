@@ -9,7 +9,10 @@ from threading import Lock
 
 app = Flask(__name__)
 
-# Logging setup
+# ========== SECTION 1: Logging Setup and Configuration ==========
+# This section initializes the logging system for the application and
+# defines various configuration parameters.
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -25,8 +28,10 @@ MAX_BUS_REQUESTS = 3
 request_counts = {}
 rate_limit_lock = Lock()
 
-# -----------------
-# Your full MESSAGES dictionary here
+# ========== SECTION 2: MESSAGES Dictionary ==========
+# This section contains the dictionary of messages used by the application,
+# organized by language (English and Spanish).
+
 MESSAGES = {
     "en": {
         "welcome": "Press 1 for English, Dos para Español.",
@@ -74,9 +79,11 @@ MESSAGES = {
     }
 }
 
-# -----------------
+# ========== SECTION 3: Helper Function - get_prediction ==========
+# This function fetches bus predictions from the external API based on the
+# provided stop ID and optional route ID. It handles API requests,
+# response parsing, and formats the prediction output.
 
-# Helper function: Fetch prediction from the API
 def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
@@ -132,7 +139,10 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         logger.error("Invalid API response")
         return "Invalid API response."
 
-# Helper function: Rate limit checking
+# ========== SECTION 4: Helper Function - check_rate_limit ==========
+# This function implements a simple in-memory rate limiting mechanism to
+# control the number of interactions per user within a one-hour window.
+
 def check_rate_limit(user_id: str) -> bool:
     now = datetime.now()
     with rate_limit_lock:
@@ -151,7 +161,9 @@ def check_rate_limit(user_id: str) -> bool:
             return True
         return False
 
-# ========== Web Interface ==========
+# ========== SECTION 5: Web Interface Endpoints ==========
+# This section defines the Flask routes for the web interface, allowing
+# users to input a stop ID and view bus predictions.
 
 HTML_TEMPLATE = '''
 <!doctype html>
@@ -196,10 +208,17 @@ def web_home():
     if request.method == "POST":
         stop_id = request.form.get("stop_id", "").strip()
         if stop_id.isdigit():
-            predictions = get_prediction(stop_id, web_mode=True)
+            result = get_prediction(stop_id, web_mode=True)
+            if isinstance(result, str):
+                predictions = [result]  # Wrap the single string in a list
+            else:
+                predictions = result
     return render_template_string(HTML_TEMPLATE, predictions=predictions)
 
-# ========== SMS Textbot ==========
+# ========== SECTION 6: SMS Textbot Endpoint ==========
+# This section defines the Flask route for handling incoming SMS messages.
+# It checks the rate limit and responds with bus predictions based on the
+# stop ID provided in the message.
 
 @app.route("/bot", methods=["POST"])
 def bot():
@@ -217,7 +236,10 @@ def bot():
         response.message("You’ve reached the limit of 8 interactions per hour.")
     return str(response)
 
-# ========== Voice IVR ==========
+# ========== SECTION 7: Voice IVR Endpoints ==========
+# This section defines the Flask routes for the voice IVR system. It handles
+# incoming calls, language selection, gathering stop and route IDs, and
+# providing bus predictions via voice.
 
 @app.route("/voice", methods=["POST"])
 def voice():
@@ -387,7 +409,8 @@ def more_routes():
     return str(response)
 
 
-# ========== Run App ==========
+# ========== SECTION 8: Run App ==========
+# This section contains the main entry point for running the Flask application.
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5000)
+    app.run(debug=False, host="0.0.0.0", port=5000)        
