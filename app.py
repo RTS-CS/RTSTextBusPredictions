@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-API_KEY = os.getenv("BUS_API_KEY", "KfRiwhzgjPeFG9rviJvkpCjnr")
+API_KEY = os.getenv("BUS_API_KEY", "7GqnDentpEHC9wjD7jeSvP7P6")
 BASE_URL = "https://riderts.app/bustime/api/v3/getpredictions"
 RTPIDATAFEED = os.getenv("RTPIDATAFEED", "bustime")
 MESSAGE_LIMIT = int(os.getenv("MESSAGE_LIMIT", 8))
