@@ -14,7 +14,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configuration
-API_KEY = os.getenv("BUS_API_KEY", "7GqnDentpEHC9wjD7jeSvP7P6")
+API_KEY = os.getenv("BUS_API_KEY", "KfRiwhzgjPeFG9rviJvkpCjnr")
 BASE_URL = "https://riderts.app/bustime/api/v3/getpredictions"
 RTPIDATAFEED = os.getenv("RTPIDATAFEED", "bustime")
 MESSAGE_LIMIT = int(os.getenv("MESSAGE_LIMIT", 8))
@@ -25,38 +25,10 @@ MAX_BUS_REQUESTS = 3
 request_counts = {}
 rate_limit_lock = Lock()
 
-# Language-specific messages (same as your full MESSAGES dictionary)
+# IMPORTANT: Paste your full MESSAGES dictionary here:
 MESSAGES = {
-    # (your full English and Spanish MESSAGES dictionary goes here, unchanged)
-    # For brevity here, assume you paste the full MESSAGES dict from your original code
+    # Your entire MESSAGES dictionary (English and Spanish) here
 }
-
-# ---------------- New Homepage Web Form ----------------
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        stop_id = request.form.get("stop_id")
-        if stop_id and stop_id.isdigit():
-            prediction = get_prediction(stop_id)
-            return render_template_string("""
-                <h1>Prediction Result</h1>
-                <p>{{ prediction }}</p>
-                <a href="/">Go Back</a>
-            """, prediction=prediction)
-        else:
-            return render_template_string("""
-                <h1>Invalid input</h1>
-                <a href="/">Try Again</a>
-            """)
-    return '''
-        <form method="post">
-            <label>Enter Stop ID:</label>
-            <input type="text" name="stop_id" maxlength="4" required>
-            <input type="submit" value="Get Prediction">
-        </form>
-    '''
-
-# ---------------- All your Original Code ----------------
 
 def get_prediction(stop_id: str, route_id: str = None, lang: str = "en") -> str:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}")
@@ -98,6 +70,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en") -> str:
             f"{route_label} {prd.get('rt', 'N/A')} {prd.get('des', 'N/A').replace('/', f' {direction} ')} in {prd.get('prdctdn', 'N/A')} {minutes_label}"
             for prd in predictions[:3]
         )
+
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
         return f"Network error: {e}"
@@ -128,6 +101,7 @@ def check_rate_limit(user_id: str) -> bool:
         logger.info(f"Limit reached for {user_id}")
         return False
 
+# --- SMS and Twilio endpoints ---
 @app.route("/bot", methods=["POST"])
 def bot():
     incoming_msg = request.values.get('Body', '').strip()
@@ -144,9 +118,42 @@ def bot():
         response.message("You’ve reached the limit of 8 interactions per hour.")
     return str(response)
 
-# ---------------- The rest of your /voice, /language, /gather_stop, /gather_route, /more_routes endpoints ----------------
-# (you just paste the rest of your full code exactly here — no changes needed)
+# --- VOICE FUNCTIONS ---
+# (paste here your full original /voice, /language, /gather_stop, /gather_route, /more_routes)
+# These are unchanged!
 
-# Final run
+# --- Web Interface (new) ---
+@app.route("/", methods=["GET", "POST"])
+def home():
+    predictions = None
+    if request.method == "POST":
+        stop_id = request.form.get("stop_id")
+        if stop_id:
+            predictions = get_prediction(stop_id)
+    html_template = """
+    <!doctype html>
+    <html>
+    <head><title>RTS Bus Predictions</title></head>
+    <body>
+    <h1>Enter Stop ID to Get Bus Predictions</h1>
+    <form method="POST">
+      <input type="text" name="stop_id" maxlength="4" required>
+      <input type="submit" value="Get Prediction">
+    </form>
+    {% if predictions %}
+      <h2>Prediction Results:</h2>
+      <ul>
+        {% for prediction in predictions.split('\\n') %}
+          <li>{{ prediction }}</li>
+        {% endfor %}
+      </ul>
+      <br>
+      <a href="/">Go Back</a>
+    {% endif %}
+    </body>
+    </html>
+    """
+    return render_template_string(html_template, predictions=predictions)
+
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=5000)
