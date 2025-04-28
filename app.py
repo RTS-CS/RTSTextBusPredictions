@@ -6,6 +6,7 @@ from twilio.twiml.voice_response import VoiceResponse, Gather
 from datetime import datetime, timedelta
 import requests
 from threading import Lock
+import re
 
 app = Flask(__name__)
 
@@ -165,6 +166,15 @@ def check_rate_limit(user_id: str) -> bool:
 # This section defines the Flask routes for the web interface, allowing
 # users to input a stop ID and view bus predictions.
 
+# Light LLM-style function: Smartly extract stop ID from messy user input
+def smart_extract_stop_id(text: str) -> str:
+    """Extracts a valid 1-4 digit stop ID from messy input."""
+    text = text.strip()
+    match = re.search(r'\b\d{1,4}\b', text)
+    if match:
+        return match.group()
+    return None
+
 HTML_TEMPLATE = '''
 <!doctype html>
 <html lang="en">
@@ -178,6 +188,7 @@ HTML_TEMPLATE = '''
         input[type="text"] { padding: 8px; width: 200px; }
         button { padding: 8px 15px; }
         .predictions { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; }
+        .error { color: red; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -197,6 +208,10 @@ HTML_TEMPLATE = '''
         <br>
         <a href="/">Go Back</a>
     </div>
+    {% elif error %}
+    <div class="error">
+        {{ error }}
+    </div>
     {% endif %}
 </body>
 </html>
@@ -205,15 +220,19 @@ HTML_TEMPLATE = '''
 @app.route("/", methods=["GET", "POST"])
 def web_home():
     predictions = None
+    error = None
     if request.method == "POST":
-        stop_id = request.form.get("stop_id", "").strip()
-        if stop_id.isdigit():
+        user_input = request.form.get("stop_id", "").strip()
+        stop_id = smart_extract_stop_id(user_input)
+        if stop_id:
             result = get_prediction(stop_id, web_mode=True)
             if isinstance(result, str):
-                predictions = [result]  # Wrap the single string in a list
+                predictions = [result]
             else:
                 predictions = result
-    return render_template_string(HTML_TEMPLATE, predictions=predictions)
+        else:
+            error = "❗ Please enter a valid 1-4 digit bus stop number."
+    return render_template_string(HTML_TEMPLATE, predictions=predictions, error=error)
 
 # ========== SECTION 6: SMS Textbot Endpoint ==========
 # This section defines the Flask route for handling incoming SMS messages.
