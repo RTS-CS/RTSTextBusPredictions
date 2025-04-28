@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RTS Bus Predictions</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f4; }
+        h1 { color: #333; }
+        form { margin-bottom: 20px; }
+        input[type="text"] { padding: 8px; width: 200px; }
+        button { padding: 8px 15px; }
+        .predictions { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; }
+        .error { color: red; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Enter Stop ID to Get Bus Predictions</h1>
+    <form method="POST">
+        <input type="text" name="stop_id" placeholder="Enter Stop ID" required>
+        <button type="submit">Get Predictions</button>
+    </form>
+    {% if predictions %}
+    <div class="predictions">
+        <h2>Prediction Results:</h2>
+        <ul>
+            {% for prediction in predictions %}
+            <li>{{ prediction }}</li>
+            {% endfor %}
+        </ul>
+        <br>
+        <a href="/">Go Back</a>
+    </div>
+    {% elif error %}
+    <div class="error">
+        {{ error }}
+    </div>
+    {% endif %}
+</body>
+</html>
