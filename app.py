@@ -171,13 +171,16 @@ def smart_extract_stop_id(text: str) -> str:
     return None
 
 # ========== SECTION 5: Web Interface ==========
+
 @app.route("/", methods=["GET", "POST"])
 def web_home():
     predictions = None
     error = None
+    stop_id = None  # <-- Track the stop_id entered by the user
+
     if request.method == "POST":
         user_input = request.form.get("stop_id", "").strip()
-        stop_id = smart_extract_stop_id(user_input)
+        stop_id = smart_extract_stop_id(user_input)  # <-- Extract stop ID smartly
         if stop_id:
             predictions = get_prediction(stop_id, web_mode=True)
             if not predictions:
@@ -185,7 +188,8 @@ def web_home():
                 predictions = None
         else:
             error = "❗ Please enter a valid 1-4 digit bus stop number."
-    return render_template("home.html", predictions=predictions, error=error)
+
+    return render_template("home.html", predictions=predictions, error=error, stop_id=stop_id)
 
 # ========== SECTION 6: SMS Bot ==========
 @app.route("/bot", methods=["POST"])
