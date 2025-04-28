@@ -6,6 +6,46 @@ from twilio.twiml.voice_response import VoiceResponse, Gather  # Import VoiceRes
 from datetime import datetime, timedelta  # Import datetime and timedelta for time-based rate limiting.
 import requests  # Import requests for making API calls to the bus prediction service.
 from threading import Lock  # Import Lock for thread-safe rate limiting.
+from flask import Flask, request, render_template_string
+# You already imported Flask and request ✅
+# Now also import render_template_string for simple HTML inside Python
+
+@app.route("/", methods=["GET", "POST"])
+def home():
+    prediction = None
+    if request.method == "POST":
+        stop_id = request.form.get("stop_id", "").strip()
+        if stop_id.isdigit() and 1 <= len(stop_id) <= 4:
+            prediction = get_prediction(stop_id)
+        else:
+            prediction = "Invalid Stop ID. Must be 1-4 digits."
+
+    return render_template_string("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>RTS Bus Predictions</title>
+        <style>
+            body { font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 40px; }
+            form { background: white; padding: 20px; border-radius: 8px; max-width: 400px; margin: auto; }
+            input[type="text"], button { width: 100%; padding: 10px; margin: 10px 0; }
+        </style>
+    </head>
+    <body>
+        <h2 style="text-align: center;">RTS Bus Stop Prediction</h2>
+        <form method="POST">
+            <input type="text" name="stop_id" placeholder="Enter Stop ID (1-4 digits)" required>
+            <button type="submit">Get Prediction</button>
+        </form>
+        {% if prediction %}
+            <div style="margin-top: 20px; text-align: center;">
+                <h3>Prediction:</h3>
+                <p>{{ prediction }}</p>
+            </div>
+        {% endif %}
+    </body>
+    </html>
+    """, prediction=prediction)
 
 app = Flask(__name__)  # Initialize the Flask application with the current module name.
 
