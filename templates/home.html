@@ -2,36 +2,25 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RTS Bus Predictions</title>
+    <title>RTS Bus Assistant Chat</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
-        <h1>RTS Bus Predictions</h1>
-        <form method="POST">
-            <input type="text" name="stop_id" placeholder="Enter Stop ID" required>
-            <button type="submit">Get Predictions</button>
+        <h1>RTS Bus Assistant</h1>
+
+        <div class="chat-box">
+            {% for message in chat_history %}
+                <div class="message {{ message.sender }}">
+                    <p>{{ message.message }}</p>
+                </div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" class="chat-form">
+            <input type="text" name="user_input" placeholder="Ask something or enter Stop ID..." required autofocus autocomplete="off">
+            <button type="submit">Send</button>
         </form>
-
-        {% if stop_id %}
-        <div class="stop-id">
-            <h2>Predictions for Stop ID: {{ stop_id }}</h2>
-        </div>
-        {% endif %}
-
-        {% if predictions %}
-        <div class="predictions">
-            <ul>
-                {% for prediction in predictions %}
-                <li>{{ prediction }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% elif error %}
-        <div class="error">
-            {{ error }}
-        </div>
-        {% endif %}
     </div>
 </body>
 </html>
