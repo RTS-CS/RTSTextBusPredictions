@@ -103,13 +103,12 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         due_text = "Due" if lang == "en" else "llega en menos de 1 minuto"
         direction_word = "Going toward" if lang == "en" else "dirigiéndose a"
 
-        grouped = {}
+        results = []
         for prd in predictions:
             rt = prd.get('rt', 'N/A')
             des = prd.get('des', 'N/A')
             if "/" in des:
                 des = des.replace("/", f" {direction_word} ")
-            key = f"{route_label} {rt} - {des}"
             arrival = prd.get('prdctdn', 'N/A')
 
             if arrival == "DUE":
@@ -123,20 +122,10 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
                 except ValueError:
                     arrival_text = arrival
 
-            if key not in grouped:
-                grouped[key] = []
-            grouped[key].append(arrival_text)
+            results.append(f"{route_label} {rt} - {des}: {arrival_text}")
 
-        if not grouped:
+        if not results:
             return "No buses expected in the next 45 minutes."
-
-        # ✅ Format correctly: one prediction per line
-        results = []
-        for key, times in grouped.items():
-            if len(times) == 1:
-                results.append(f"{key}: {times[0]}")
-            else:
-                results.append(f"{key}: {' and '.join(times)}")
 
         if web_mode:
             return results  # List of lines for web display
@@ -149,7 +138,6 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
     except ValueError:
         logger.error("Invalid API response")
         return "Invalid API response."
-
 
 # ========== SECTION 5: Web Chat Interface ==========
 
