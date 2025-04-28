@@ -6,31 +6,32 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>🚍 RTS Bus Predictions</h1>
+    <div class="container">
+        <h1>RTS Bus Predictions</h1>
+        <form method="POST">
+            <input type="text" name="stop_id" placeholder="Enter Stop ID" required>
+            <button type="submit">Get Predictions</button>
+        </form>
 
-    <form method="POST">
-        <input type="text" name="stop_id" placeholder="Enter Stop ID" required>
-        <button type="submit">Get Predictions</button>
-    </form>
-
-    {% if stop_id %}
-        <div class="predictions">
+        {% if stop_id %}
+        <div class="stop-id">
             <h2>Predictions for Stop ID: {{ stop_id }}</h2>
-
-            {% if predictions %}
-                <ul>
-                    {% for prediction in predictions %}
-                        <li>{{ prediction }}</li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No predictions available for this stop.</p>  <!-- When no buses coming -->
-            {% endif %}
         </div>
-    {% elif error %}
+        {% endif %}
+
+        {% if predictions %}
+        <div class="predictions">
+            <ul>
+                {% for prediction in predictions %}
+                <li>{{ prediction }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% elif error %}
         <div class="error">
             {{ error }}
         </div>
-    {% endif %}
+        {% endif %}
+    </div>
 </body>
 </html>
