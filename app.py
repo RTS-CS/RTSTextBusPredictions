@@ -26,7 +26,56 @@ request_counts = {}
 rate_limit_lock = Lock()
 
 # ========== SECTION 2: MESSAGES Dictionary ==========
-# [Keep your MESSAGES dictionary here unchanged]
+# This section contains the dictionary of messages used by the application,
+# organized by language (English and Spanish).
+
+MESSAGES = {
+    "en": {
+        "welcome": "Press 1 for English, Dos para Español.",
+        "limit_reached": "You’ve reached the limit of 8 interactions per hour. Thank you for using our services, goodbye.",
+        "start": "Hi, welcome to Gainesville RTS automatic Customer Service. Enter your stop ID number, then press pound (#).",
+        "no_input": "No input received. Thank you for using our services, goodbye.",
+        "invalid_stop": "Invalid input. Please call again and enter a valid stop number. Thank you for using our services, goodbye.",
+        "stop_too_long": "Stop ID number can only be up to 4 digits. Please try again.",
+        "stop_attempts_exceeded": "Stop ID number can only be up to 4 digits. Too many attempts. Thank you for using our services, goodbye.",
+        "route_prompt": "Now enter your bus route number, then press pound (#).",
+        "no_route": "No route number received. Thank you for using our services, goodbye.",
+        "invalid_route": "Invalid route number. Call again with a valid route number. Thank you for using our services, goodbye.",
+        "route_too_long": "Route number can only be up to 3 digits. Please try again.",
+        "route_attempts_exceeded": "Route number can only be up to 3 digits. Too many attempts. Thank you for using our services, goodbye.",
+        "prediction_prefix": "For stop {stop_id}, ",
+        "no_prediction": "No buses expected at this stop in the next 45 minutes.",
+        "more_prompt": "Would you like predictions for another bus number at this stop? Press 1 for yes, 2 for no.",
+        "no_more_response": "No response received. Thank you for using our services, goodbye.",
+        "request_limit": "Thank you for using our services, goodbye.",
+        "more_route_prompt": "Enter another bus route number, then press pound (#).",
+        "invalid_choice": "Invalid input. Thank you for using our services, goodbye.",
+        "error": "Error: No caller identified. Thank you for using our services, goodbye."
+    },
+    "es": {
+        "welcome": "Presione 1 para inglés, Marque 2 para Español.",
+        "limit_reached": "Ha alcanzado el límite de 8 interacciones por hora. Gracias por utilizar nuestro servicio, adiós.",
+        "start": "Hola, bienvenido al servicio automático de Gainesville RTS. Ingrese el número de su parada, luego presione el símbolo de número (#).",
+        "no_input": "No se recibió entrada. Gracias por utilizar nuestro servicio, adiós.",
+        "invalid_stop": "Entrada inválida. Por favor llame de nuevo e ingrese un número de parada válido. Gracias por utilizar nuestro servicio, adiós.",
+        "stop_too_long": "El número de parada puede tener hasta 4 dígitos. Inténtelo de nuevo.",
+        "stop_attempts_exceeded": "El número de parada puede tener hasta 4 dígitos. Demasiados intentos. Gracias por utilizar nuestro servicio, adiós.",
+        "route_prompt": "Ahora ingrese el número de su ruta de autobús, luego presione el símbolo de número (#).",
+        "no_route": "No se recibió número de ruta. Gracias por utilizar nuestro servicio, adiós.",
+        "invalid_route": "Número de ruta inválido. Llame de nuevo con un número de ruta válido. Gracias por utilizar nuestro servicio, adiós.",
+        "route_too_long": "El número de ruta puede tener hasta 3 dígitos. Inténtelo de nuevo.",
+        "route_attempts_exceeded": "El número de ruta puede tener hasta 3 dígitos. Demasiados intentos. Gracias por utilizar nuestro servicio, adiós.",
+        "prediction_prefix": "Para la parada {stop_id}, ",
+        "no_prediction": "No se esperan autobuses en esta parada en los próximos 45 minutos.",
+        "more_prompt": "¿Desea predicciones para otro número de autobús en esta parada? Presione 1 para sí, 2 para no.",
+        "no_more_response": "No se recibió respuesta. Gracias por utilizar nuestro servicio, adiós.",
+        "request_limit": "Gracias por utilizar nuestro servicio, adiós.",
+        "more_route_prompt": "Ingrese otro número de ruta de autobús, luego presione el símbolo de número (#).",
+        "invalid_choice": "Entrada inválida. Gracias por utilizar nuestro servicio, adiós.",
+        "error": "Error: No se identificó al llamante. Gracias por utilizar nuestro servicio, adiós."
+    }
+}
+
 
 # ========== SECTION 3: Helper Functions ==========
 
