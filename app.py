@@ -86,7 +86,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
     params = {"key": API_KEY, "rtpidatafeed": RTPIDATAFEED, "stpid": padded_stop_id, "format": "json", "max": 99}
-    
+
     try:
         response = requests.get(BASE_URL, params=params, timeout=5)
         response.raise_for_status()
@@ -106,8 +106,10 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         grouped = {}
         for prd in predictions:
             rt = prd.get('rt', 'N/A')
-            des = prd.get('des', 'N/A').replace("/", f" {direction_word} ")
-            key = f"{route_label} {rt} {des}"
+            des = prd.get('des', 'N/A')
+            if "/" in des:
+                des = des.replace("/", f" {direction_word} ")
+            key = f"{route_label} {rt} - {des}"
             arrival = prd.get('prdctdn', 'N/A')
 
             if arrival == "DUE":
@@ -128,18 +130,16 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         if not grouped:
             return "No buses expected in the next 45 minutes."
 
+        # Nicely format results
         results = []
         for key, times in grouped.items():
-            if len(times) == 1:
-                results.append(f"{key}: {times[0]}")
-            else:
-                formatted_times = " and ".join(times)
-                results.append(f"{key}: {formatted_times}")
+            formatted_times = ", ".join(times)
+            results.append(f"**{key}:** → {formatted_times}")
 
         if web_mode:
             return results
         else:
-            return "\n".join(results[:3])
+            return "\n".join(results[:3])  # Limit to 3 for SMS
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
@@ -151,7 +151,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
 def check_rate_limit(user_id: str) -> bool:
     now = datetime.now()
     with rate_limit_lock:
-        if user_id == "+17867868466":
+        if user_id == "+17867868466":  # <-- Your allowed test number
             return True
         if user_id not in request_counts:
             request_counts[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
