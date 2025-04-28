@@ -130,16 +130,19 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         if not grouped:
             return "No buses expected in the next 45 minutes."
 
-        # Nicely format results
+        # 🛠️ Clean formatting: Use 'and' instead of commas
         results = []
         for key, times in grouped.items():
-            formatted_times = ", ".join(times)
-            results.append(f"**{key}:** → {formatted_times}")
+            if len(times) == 1:
+                results.append(f"{key}: {times[0]}")
+            else:
+                formatted_times = " and ".join(times)
+                results.append(f"{key}: {formatted_times}")
 
         if web_mode:
             return results
         else:
-            return "\n".join(results[:3])  # Limit to 3 for SMS
+            return "\n".join(results[:3])  # Limit for SMS
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
@@ -151,7 +154,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
 def check_rate_limit(user_id: str) -> bool:
     now = datetime.now()
     with rate_limit_lock:
-        if user_id == "+17867868466":  # <-- Your allowed test number
+        if user_id == "+17867868466":
             return True
         if user_id not in request_counts:
             request_counts[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
