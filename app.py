@@ -66,10 +66,16 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en") -> str:
             else:
                 return f"{route_label} {prd.get('rt', 'N/A')} {destination.replace('/', f' {direction} ')} {arrives_label} in {arrival_time} {minutes_label}"
 
-        return "\n".join(
-            f"{route_label} {prd.get('rt', 'N/A')} {prd.get('des', 'N/A').replace('/', f' {direction} ')} in {prd.get('prdctdn', 'N/A')} {minutes_label}"
-            for prd in predictions[:3]
-        )
+        # Show ALL upcoming predictions within 45 minutes
+results = []
+for prd in predictions:
+    minutes = prd.get('prdctdn')
+    if minutes == "DUE" or (minutes and minutes.isdigit() and int(minutes) <= 45):
+        results.append(f"{route_label} {prd.get('rt', 'N/A')} {prd.get('des', 'N/A').replace('/', f' {direction} ')} in {minutes} {minutes_label}")
+if not results:
+    return "No buses arriving within the next 45 minutes."
+return "\n".join(results)
+
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
