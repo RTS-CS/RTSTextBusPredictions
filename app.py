@@ -176,15 +176,17 @@ def smart_extract_stop_id(text: str) -> str:
 def web_home():
     predictions = None
     error = None
-    stop_id = None  # <-- Track the stop_id entered by the user
+    stop_id = None
 
     if request.method == "POST":
         user_input = request.form.get("stop_id", "").strip()
-        stop_id = smart_extract_stop_id(user_input)  # <-- Extract stop ID smartly
+        stop_id = smart_extract_stop_id(user_input)
         if stop_id:
             predictions = get_prediction(stop_id, web_mode=True)
-            if not predictions:
-                error = "❗ No buses expected at this stop in the next 45 minutes."
+
+            # 🔥 Fix: if predictions is a string, treat it as an error
+            if isinstance(predictions, str):
+                error = predictions
                 predictions = None
         else:
             error = "❗ Please enter a valid 1-4 digit bus stop number."
