@@ -7,7 +7,7 @@ services:
     plan: free
     envVars:
       - key: BUS_API_KEY
-        value: KfRiwhzgjPeFG9rviJvkpCjnr
+        value: 7GqnDentpEHC9wjD7jeSvP7P6
       - key: RTPIDATAFEED
         value: bustime
       - key: MESSAGE_LIMIT
