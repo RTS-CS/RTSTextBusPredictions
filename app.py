@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, session
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse, Gather
 from datetime import datetime, timedelta
@@ -8,13 +8,15 @@ import requests
 from threading import Lock
 import re
 
+# Initialize the Flask app
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")  # Secret key for session management
 
 # ========== SECTION 1: Logging Setup and Configuration ==========
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Configuration
+# App Configuration
 API_KEY = os.getenv("BUS_API_KEY", "7GqnDentpEHC9wjD7jeSvP7P6")
 BASE_URL = "https://riderts.app/bustime/api/v3/getpredictions"
 RTPIDATAFEED = os.getenv("RTPIDATAFEED", "bustime")
@@ -22,6 +24,7 @@ MESSAGE_LIMIT = int(os.getenv("MESSAGE_LIMIT", 8))
 MAX_ATTEMPTS = 3
 MAX_BUS_REQUESTS = 3
 
+# Rate limiting dictionary
 request_counts = {}
 rate_limit_lock = Lock()
 
@@ -170,28 +173,41 @@ def smart_extract_stop_id(text: str) -> str:
         return match.group()
     return None
 
-# ========== SECTION 5: Web Interface ==========
+# ========== SECTION 5: Web Chat Interface ==========
 
 @app.route("/", methods=["GET", "POST"])
 def web_home():
-    predictions = None
-    error = None
-    stop_id = None
+    if "chat_history" not in session:
+        session["chat_history"] = []
 
     if request.method == "POST":
-        user_input = request.form.get("stop_id", "").strip()
-        stop_id = smart_extract_stop_id(user_input)
-        if stop_id:
-            predictions = get_prediction(stop_id, web_mode=True)
+        user_input = request.form.get("user_input", "").strip()
 
-            # 🔥 Fix: if predictions is a string, treat it as an error
-            if isinstance(predictions, str):
-                error = predictions
-                predictions = None
-        else:
-            error = "❗ Please enter a valid 1-4 digit bus stop number."
+        if user_input:
+            # Save user's question
+            session["chat_history"].append({"sender": "user", "message": user_input})
 
-    return render_template("home.html", predictions=predictions, error=error, stop_id=stop_id)
+            # Try to interpret as stop ID if numeric
+            if user_input.isdigit() and 1 <= len(user_input) <= 4:
+                predictions = get_prediction(user_input, web_mode=True)
+                if isinstance(predictions, str):
+                    bot_response = predictions
+                else:
+                    bot_response = "\n".join(predictions)
+            else:
+                # Basic handling for now for non-stop-id questions
+                bot_response = (
+                    "🤖 I'm a simple bus assistant! Please enter a Stop ID (1-4 digits) "
+                    "to get predictions, or check back soon for more features."
+                )
+
+            # Save bot's answer
+            session["chat_history"].append({"sender": "bot", "message": bot_response})
+
+    return render_template(
+        "home.html",
+        chat_history=session.get("chat_history", [])
+    )
 
 # ========== SECTION 6: SMS Bot ==========
 @app.route("/bot", methods=["POST"])
