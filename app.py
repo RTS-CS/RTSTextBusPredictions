@@ -83,55 +83,74 @@ MESSAGES = {
 # ========== SECTION 3: Helper Function - get_prediction ==========
 # This function fetches bus predictions from the external API based on the
 # provided stop ID and optional route ID. It handles API requests,
-# response parsing, and formats the prediction output.
+# response parsing, and formats the prediction output, grouping arrivals
+# intelligently.
 
 def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
-    params = {"key": API_KEY, "rtpidatafeed": RTPIDATAFEED, "stpid": padded_stop_id, "format": "json", "max": 99}
+    params = {
+        "key": API_KEY,
+        "rtpidatafeed": RTPIDATAFEED,
+        "stpid": padded_stop_id,
+        "format": "json",
+        "max": 99
+    }
+
     try:
         response = requests.get(BASE_URL, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
         if "bustime-response" not in data or "prd" not in data["bustime-response"]:
             return "No predictions available for this stop."
+        
         predictions = data["bustime-response"]["prd"]
         if not predictions:
             return "No predictions available for this stop."
 
         route_label = "Route" if lang == "en" else "Ruta"
-        arrives_label = "arrives" if lang == "en" else "llega"
         minutes_label = "minutes" if lang == "en" else "minutos"
-        direction = "Going toward" if lang == "en" else "dirigiéndose a"
+        due_text = "Due" if lang == "en" else "llega en menos de 1 minuto"
+        direction_word = "Going toward" if lang == "en" else "dirigiéndose a"
 
-        results = []
+        # Group predictions by Route + Destination
+        grouped = {}
         for prd in predictions:
+            rt = prd.get('rt', 'N/A')
+            des = prd.get('des', 'N/A').replace("/", f" {direction_word} ")
+            key = f"{route_label} {rt} {des}"
             arrival = prd.get('prdctdn', 'N/A')
+
             if arrival == "DUE":
-                arrival_text = "Due" if lang == "en" else "llega en menos de 1 minuto"
+                arrival_text = due_text
             else:
                 try:
                     arrival_min = int(arrival)
-                    if web_mode:
-                        if arrival_min <= 45:
-                            arrival_text = f"{arrival_min} {minutes_label}"
-                        else:
-                            continue  # skip buses later than 45 min
-                    else:
-                        arrival_text = f"{arrival_min} {minutes_label}"
+                    if web_mode and arrival_min > 45:
+                        continue  # Skip buses arriving after 45 minutes
+                    arrival_text = f"{arrival_min} {minutes_label}"
                 except ValueError:
-                    arrival_text = arrival
-            destination = prd.get('des', 'N/A').replace("/", f" {direction} ")
-            result = f"{route_label} {prd.get('rt', 'N/A')} {destination} in {arrival_text}"
-            results.append(result)
+                    arrival_text = arrival  # In case of unexpected text
 
-        if not results:
+            if key not in grouped:
+                grouped[key] = []
+            grouped[key].append(arrival_text)
+
+        if not grouped:
             return "No buses expected in the next 45 minutes."
+
+        results = []
+        for key, times in grouped.items():
+            if len(times) == 1:
+                results.append(f"{key}: {times[0]}")
+            else:
+                formatted_times = " and ".join(times)
+                results.append(f"{key}: {formatted_times}")
 
         if web_mode:
             return results
         else:
-            return "\n".join(results[:3])  # Only first 3 predictions for SMS
+            return "\n".join(results[:3])  # Limit to first 3 for SMS
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
