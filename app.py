@@ -129,12 +129,17 @@ def web_home():
         user_input = request.form.get("message", "").strip()
 
         if user_input:
-            # Save the user message
+            # Always keep the user message (never clear user inputs)
             session["chat_history"].append({"sender": "user", "text": user_input})
 
-            # Handle numeric stop ID
+            # Handle numeric Stop ID
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
-                # First: show user that search started
+                # 🧹 Before fetching predictions, clear old bot messages
+                session["chat_history"] = [
+                    item for item in session["chat_history"] if item["sender"] == "user"
+                ]
+
+                # Now show searching status
                 session["chat_history"].append({
                     "sender": "bot",
                     "text": f"🔎 Searching predictions for Stop ID {user_input}..."
@@ -147,7 +152,6 @@ def web_home():
                     for line in predictions:
                         session["chat_history"].append({"sender": "bot", "text": line})
             else:
-                # If user enters something else (not Stop ID)
                 session["chat_history"].append({
                     "sender": "bot",
                     "text": (
@@ -157,13 +161,6 @@ def web_home():
                 })
 
     return render_template("home.html", chat_history=session["chat_history"])
-
-# ========== SECTION 5.1: Clear Chat (Optional Utility) ==========
-
-@app.route("/clear")
-def clear_chat():
-    session.pop("chat_history", None)
-    return "Chat history cleared!"
 
 # ========== ROUTE: BACKGROUND PREDICTION REFRESH ==========
 @app.route("/refresh", methods=["POST"])
