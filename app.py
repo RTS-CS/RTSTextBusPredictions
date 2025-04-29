@@ -205,5 +205,25 @@ def bot():
 # (Voice endpoints - unchanged. Copy what you had.)
 
 # ========== SECTION 8: Run the App ==========
+# ========== SECTION 5B: Background Prediction Refresh ==========
+@app.route("/refresh", methods=["POST"])
+def refresh_predictions():
+    last_stop_id = None
+
+    # Find the last stop ID from user input
+    for entry in reversed(session.get("chat_history", [])):
+        if entry["sender"] == "user" and entry["text"].isdigit():
+            last_stop_id = entry["text"]
+            break
+
+    if last_stop_id:
+        predictions = get_prediction(last_stop_id, web_mode=True)
+        if isinstance(predictions, list):
+            # Remove last bot predictions
+            session["chat_history"] = [item for item in session["chat_history"] if item["sender"] != "bot"]
+            # Add fresh predictions
+            for line in predictions:
+                session["chat_history"].append({"sender": "bot", "text": line})
+    return "", 204
 if __name__ == "__main__":
     app.run(debug=False, host="0.0.0.0", port=5000)
