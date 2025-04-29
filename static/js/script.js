@@ -19,3 +19,10 @@ setInterval(() => {
         window.location.reload();
     });
 }, 60000);
+function clearChat() {
+    fetch('/clear', { method: 'POST' })
+        .then(() => {
+            window.location.reload();
+        })
+        .catch(err => console.error('Failed to clear chat:', err));
+}
