@@ -49,9 +49,9 @@ MESSAGES = {
     }
 }
 
-# ========== HELPER FUNCTIONS ==========
+# ========== SECTION 3: Helper Functions ==========
 
-def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False):
+def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str | list[str]:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
     params = {"key": API_KEY, "rtpidatafeed": RTPIDATAFEED, "stpid": padded_stop_id, "format": "json", "max": 99}
@@ -60,10 +60,12 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         response = requests.get(BASE_URL, params=params, timeout=5)
         response.raise_for_status()
         data = response.json()
-        predictions = data.get("bustime-response", {}).get("prd", [])
+        if "bustime-response" not in data or "prd" not in data["bustime-response"]:
+            return "No predictions available for this stop."
 
+        predictions = data["bustime-response"]["prd"]
         if not predictions:
-            return "No buses expected at this stop in the next 45 minutes."
+            return "No predictions available for this stop."
 
         route_label = "Route" if lang == "en" else "Ruta"
         minutes_label = "minutes" if lang == "en" else "minutos"
@@ -73,7 +75,9 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         grouped = {}
         for prd in predictions:
             rt = prd.get('rt', 'N/A')
-            des = prd.get('des', 'N/A').replace("/", f" {direction_word} ")
+            des = prd.get('des', 'N/A')
+            if "/" in des:
+                des = des.replace("/", f" {direction_word} ")
             key = f"{route_label} {rt} - {des}"
             arrival = prd.get('prdctdn', 'N/A')
 
@@ -84,23 +88,28 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
                     arrival_min = int(arrival)
                     if web_mode and arrival_min > 45:
                         continue
-                    arrival_text = f"in {arrival_min} {minutes_label}"
+                    arrival_text = f"{arrival_min} {minutes_label}"
                 except ValueError:
                     arrival_text = arrival
 
-            grouped.setdefault(key, []).append(arrival_text)
+            if key not in grouped:
+                grouped[key] = []
+            grouped[key].append(arrival_text)
 
         if not grouped:
             return "No buses expected in the next 45 minutes."
 
-        results = [f"🚌 Estimated times for Stop ID {stop_id}:
-"]
+        results = [f"🚌 Estimated times for Stop ID {stop_id}:\n"]
         for key, times in grouped.items():
-            formatted_times = " and ".join(times)
-            results.append(f"{key}: {formatted_times}")
+            if len(times) == 1:
+                results.append(f"{key}: {times[0]}")
+            else:
+                results.append(f"{key}: {', '.join(times[:-1])} and {times[-1]}")
 
-        return results if web_mode else "
-".join(results[:3])
+        if web_mode:
+            return results
+        else:
+            return "\n".join(results[:3])
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
@@ -108,20 +117,6 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
     except ValueError:
         logger.error("Invalid API response")
         return "Invalid API response."
-
-def check_rate_limit(user_id: str) -> bool:
-    now = datetime.now()
-    with rate_limit_lock:
-        if user_id == "+17867868466":
-            return True
-        user_data = request_counts.get(user_id)
-        if not user_data or now > user_data["reset_time"]:
-            request_counts[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
-            return True
-        if user_data["count"] < MESSAGE_LIMIT:
-            user_data["count"] += 1
-            return True
-        return False
 
 # ========== ROUTE: WEB CHAT INTERFACE ==========
 
