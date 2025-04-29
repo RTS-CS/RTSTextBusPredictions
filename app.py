@@ -118,7 +118,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         logger.error("Invalid API response")
         return "Invalid API response."
 
-# ========== ROUTE: WEB CHAT INTERFACE ==========
+# ========== SECTION 5: Web Chat Interface ==========
 
 @app.route("/", methods=["GET", "POST"])
 def web_home():
@@ -129,22 +129,32 @@ def web_home():
         user_input = request.form.get("message", "").strip()
 
         if user_input:
-            session["chat_history"].append({"sender": "user", "text": user_input})
+            # Only save user input if it is NOT numeric (i.e., it's a general question)
+            if not (user_input.isdigit() and 1 <= len(user_input) <= 4):
+                session["chat_history"].append({"sender": "user", "text": user_input})
+
+            # Handle numeric stop ID input separately
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
                 predictions = get_prediction(user_input, web_mode=True)
-                session["chat_history"] = [msg for msg in session["chat_history"] if msg["sender"] != "bot"]
                 if isinstance(predictions, str):
                     session["chat_history"].append({"sender": "bot", "text": predictions})
                 else:
                     for line in predictions:
                         session["chat_history"].append({"sender": "bot", "text": line})
             else:
+                # Basic fallback for other questions
                 session["chat_history"].append({
                     "sender": "bot",
-                    "text": "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) to get predictions."
+                    "text": (
+                        "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) "
+                        "to get bus arrival predictions."
+                    )
                 })
 
-    return render_template("home.html", chat_history=session["chat_history"])
+    return render_template(
+        "home.html",
+        chat_history=session.get("chat_history", [])
+    )
 
 # ========== ROUTE: BACKGROUND PREDICTION REFRESH ==========
 @app.route("/refresh", methods=["POST"])
