@@ -153,6 +153,13 @@ def web_home():
         chat_history=session.get("chat_history", [])
     )
 
+# ========== SECTION 5.1: Clear Chat (Optional Utility) ==========
+
+@app.route("/clear")
+def clear_chat():
+    session.pop("chat_history", None)
+    return "Chat history cleared!"
+
 # ========== ROUTE: BACKGROUND PREDICTION REFRESH ==========
 @app.route("/refresh", methods=["POST"])
 def refresh_predictions():
