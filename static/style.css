@@ -89,3 +89,21 @@ button {
 button:hover {
     background-color: #2980b9;
 }
+/* Clock Styling */
+#clock {
+    text-align: center;
+    font-size: 14px;
+    color: #888;
+    margin-top: -10px;
+    margin-bottom: 20px;
+}
+/* Special styling for the stop ID summary message */
+.special-message {
+    background-color: #e0f7fa;
+    color: #00796b;
+    font-weight: bold;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    text-align: center;
+}
