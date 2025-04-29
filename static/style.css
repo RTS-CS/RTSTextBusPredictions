@@ -1,17 +1,17 @@
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f9f9f9;
+    background-color: #f0f2f5;
     margin: 0;
     padding: 0;
 }
 
-.container {
+.chat-container {
     max-width: 600px;
     margin: 50px auto;
     background: #ffffff;
-    padding: 30px 40px;
+    padding: 30px;
     border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
 }
 
 h1 {
@@ -21,33 +21,42 @@ h1 {
 }
 
 .chat-box {
-    height: 400px;
+    max-height: 400px;
     overflow-y: auto;
-    margin-bottom: 20px;
-    border: 1px solid #ddd;
     padding: 15px;
-    border-radius: 6px;
-    background-color: #fafafa;
+    margin-bottom: 20px;
+    background-color: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 8px;
 }
 
 .message {
-    margin-bottom: 15px;
-    max-width: 75%;
-    padding: 10px 15px;
-    border-radius: 15px;
-    word-wrap: break-word;
+    display: flex;
+    margin-bottom: 12px;
 }
 
 .message.user {
-    background-color: #d1ecf1;
-    margin-left: auto;
-    text-align: right;
+    justify-content: flex-end;
 }
 
 .message.bot {
-    background-color: #f8d7da;
-    margin-right: auto;
-    text-align: left;
+    justify-content: flex-start;
+}
+
+.bubble {
+    max-width: 75%;
+    padding: 12px 18px;
+    border-radius: 20px;
+    line-height: 1.4;
+    word-wrap: break-word;
+    background-color: #e6f7ff;
+    color: #0c5460;
+    font-size: 15px;
+}
+
+.message.user .bubble {
+    background-color: #d4edda;
+    color: #155724;
 }
 
 .chat-form {
