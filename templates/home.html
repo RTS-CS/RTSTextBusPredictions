@@ -2,21 +2,29 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Gainesville RTS Bus Predictions</title>
+    <title>RTS Text Bus Predictions</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <h1>Gainesville RTS Bus Chat</h1>
+    <div class="chat-container">
+        <h1>🚌 RTS Bus Predictions Assistant</h1>
 
         <div class="chat-box">
-            {% for msg in chat_history %}
-                <div class="message {{ msg.sender }}">{{ msg.text }}</div>
-            {% endfor %}
+            {% if chat_history %}
+                {% for item in chat_history %}
+                    <div class="message {{ item.sender }}">
+                        <span class="bubble">{{ item.message | replace('\n', '<br>') | safe }}</span>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="message bot">
+                    <span class="bubble">Hi 👋! Enter a Stop ID (1-4 digits) to get started.</span>
+                </div>
+            {% endif %}
         </div>
 
-        <form method="POST" class="chat-form">
-            <input type="text" name="message" placeholder="Enter Stop ID or ask a question..." autocomplete="off" required>
+        <form class="chat-form" method="POST">
+            <input type="text" name="user_input" placeholder="Enter Stop ID or question..." autocomplete="off" required>
             <button type="submit">Send</button>
         </form>
     </div>
