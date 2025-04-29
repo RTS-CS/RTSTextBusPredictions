@@ -82,7 +82,7 @@ MESSAGES = {
 
 # ========== SECTION 3: Helper Functions ==========
 
-def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str:
+def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str | list[str]:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
     params = {"key": API_KEY, "rtpidatafeed": RTPIDATAFEED, "stpid": padded_stop_id, "format": "json", "max": 99}
@@ -111,6 +111,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
                 des = des.replace("/", f" {direction_word} ")
             arrival = prd.get('prdctdn', 'N/A')
 
+            arrival_text = ""
             if arrival == "DUE":
                 arrival_text = due_text
             else:
@@ -128,9 +129,9 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
             return "No buses expected in the next 45 minutes."
 
         if web_mode:
-            return results  # List of lines for web display
+            return results  # Return a list for web display
         else:
-            return "\n".join(results[:3])  # Limit to first 3 predictions for SMS
+            return "\n".join(results[:3])  # Return a string for SMS
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
@@ -138,7 +139,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
     except ValueError:
         logger.error("Invalid API response")
         return "Invalid API response."
-
+        
 # ========== SECTION 5: Web Chat Interface ==========
 
 @app.route("/", methods=["GET", "POST"])
