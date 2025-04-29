@@ -129,11 +129,7 @@ def web_home():
         user_input = request.form.get("message", "").strip()
 
         if user_input:
-            # Only save user input if it is NOT numeric (i.e., it's a general question)
-            if not (user_input.isdigit() and 1 <= len(user_input) <= 4):
-                session["chat_history"].append({"sender": "user", "text": user_input})
-
-            # Handle numeric stop ID input separately
+            # Check if it is a valid Stop ID
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
                 predictions = get_prediction(user_input, web_mode=True)
                 if isinstance(predictions, str):
@@ -142,12 +138,13 @@ def web_home():
                     for line in predictions:
                         session["chat_history"].append({"sender": "bot", "text": line})
             else:
-                # Basic fallback for other questions
+                # Save non-numeric user questions
+                session["chat_history"].append({"sender": "user", "text": user_input})
                 session["chat_history"].append({
                     "sender": "bot",
                     "text": (
                         "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) "
-                        "to get bus arrival predictions."
+                        "to get predictions. More features coming soon!"
                     )
                 })
 
