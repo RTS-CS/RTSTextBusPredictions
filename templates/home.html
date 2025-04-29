@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>RTS Text Bus Predictions</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- ========== SECTION 1: JavaScript for Clock and Auto-Refresh ========== -->
     <script>
         // Live clock
         function updateClock() {
@@ -25,11 +27,17 @@
         }, 60000);
     </script>
 </head>
+
 <body>
+
+    <!-- ========== SECTION 2: Main Container ========== -->
     <div class="chat-container">
+
+        <!-- ========== SECTION 3: Header (Title + Clock) ========== -->
         <h1>🚌 RTS Bus Predictions Assistant</h1>
         <div id="clock" style="text-align: center; font-size: 16px; color: #555; margin-top: -10px; margin-bottom: 20px;"></div>
 
+        <!-- ========== SECTION 4: Chat Box ========== -->
         <div class="chat-box">
             {% if chat_history %}
                 {% for item in chat_history %}
@@ -44,10 +52,13 @@
             {% endif %}
         </div>
 
+        <!-- ========== SECTION 5: Input Form ========== -->
         <form class="chat-form" method="POST">
             <input type="text" name="message" placeholder="Enter Stop ID or question..." autocomplete="off" required>
             <button type="submit">Send</button>
         </form>
+
     </div>
+
 </body>
 </html>
