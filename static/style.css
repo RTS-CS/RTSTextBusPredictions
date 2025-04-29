@@ -1,3 +1,4 @@
+/* Base Styles */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #f0f2f5;
@@ -5,29 +6,30 @@ body {
     padding: 0;
 }
 
+/* Chat Container */
 .chat-container {
     max-width: 600px;
-    margin: 30px auto;
+    margin: 50px auto;
     background: #ffffff;
-    padding: 20px;
+    padding: 30px;
     border-radius: 10px;
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
 }
 
-h1 {
+/* Header */
+header h1 {
     text-align: center;
     color: #2c3e50;
     margin-bottom: 10px;
-    font-size: 22px;
 }
-
-#clock {
+.clock {
     text-align: center;
-    font-size: 14px;
-    color: #666;
+    font-size: 16px;
+    color: #555;
     margin-bottom: 20px;
 }
 
+/* Chat Box */
 .chat-box {
     max-height: 400px;
     overflow-y: auto;
@@ -37,49 +39,36 @@ h1 {
     border: 1px solid #ddd;
     border-radius: 8px;
 }
-
 .message {
     display: flex;
     margin-bottom: 12px;
 }
-
 .message.user {
     justify-content: flex-end;
 }
-
 .message.bot {
     justify-content: flex-start;
 }
-
 .bubble {
     max-width: 75%;
     padding: 12px 18px;
     border-radius: 20px;
-    line-height: 1.5;
+    line-height: 1.4;
     word-wrap: break-word;
     background-color: #e6f7ff;
     color: #0c5460;
     font-size: 15px;
 }
-
 .message.user .bubble {
     background-color: #d4edda;
     color: #155724;
 }
 
-.bubble.announcement {
-    font-weight: bold;
-    background-color: #f8f9fa;
-    color: #333;
-    border-left: 4px solid #3498db;
-    margin-bottom: 4px;
-}
-
+/* Form */
 .chat-form {
     display: flex;
     gap: 10px;
 }
-
 input[type="text"] {
     flex: 1;
     padding: 12px;
@@ -87,7 +76,6 @@ input[type="text"] {
     border: 1px solid #ccc;
     border-radius: 6px;
 }
-
 button {
     padding: 12px 20px;
     background-color: #3498db;
@@ -98,29 +86,6 @@ button {
     cursor: pointer;
     transition: background-color 0.3s;
 }
-
 button:hover {
     background-color: #2980b9;
-}
-
-/* Mobile-friendly tweaks */
-@media (max-width: 480px) {
-    .chat-container {
-        margin: 10px;
-        padding: 15px;
-    }
-
-    h1 {
-        font-size: 18px;
-    }
-
-    .bubble {
-        font-size: 14px;
-        padding: 10px 14px;
-    }
-
-    button {
-        font-size: 14px;
-        padding: 10px 16px;
-    }
 }
