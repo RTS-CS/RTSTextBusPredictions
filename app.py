@@ -148,34 +148,30 @@ def web_home():
         session["chat_history"] = []
 
     if request.method == "POST":
-        user_input = request.form.get("user_input", "").strip()
+        user_input = request.form.get("message", "").strip()
 
         if user_input:
-            # Save user's question
-            session["chat_history"].append({"sender": "user", "message": user_input})
+            session["chat_history"].append({"sender": "user", "text": user_input})
 
-            # Try to interpret as stop ID if numeric
+            # Handle numeric stop ID
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
                 predictions = get_prediction(user_input, web_mode=True)
                 if isinstance(predictions, str):
-                    bot_response = predictions
+                    session["chat_history"].append({"sender": "bot", "text": predictions})
                 else:
-                    bot_response = "\n".join(predictions)
+                    for line in predictions:
+                        session["chat_history"].append({"sender": "bot", "text": line})
             else:
-                # Basic handling for now for non-stop-id questions
-                bot_response = (
-                    "🤖 I'm a simple bus assistant! Please enter a Stop ID (1-4 digits) "
-                    "to get predictions, or check back soon for more features."
-                )
+                session["chat_history"].append({
+                    "sender": "bot",
+                    "text": (
+                        "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) "
+                        "to get predictions. More features coming soon!"
+                    )
+                })
 
-            # Save bot's answer
-            session["chat_history"].append({"sender": "bot", "message": bot_response})
+    return render_template("home.html", chat_history=session["chat_history"])
 
-    return render_template(
-        "home.html",
-        chat_history=session.get("chat_history", [])
-    )
-    
 # ========== SECTION 6: SMS Bot ==========
 @app.route("/bot", methods=["POST"])
 def bot():
