@@ -3,23 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <title>RTS Text Bus Predictions</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        // Live clock
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById("clock").textContent = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        window.onload = updateClock;
+
+        // Auto-refresh predictions every 60 seconds
+        setInterval(() => {
+            fetch('/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(() => {
+                window.location.reload();
+            });
+        }, 60000);
+    </script>
 </head>
 <body>
     <div class="chat-container">
-        <!-- Header Section -->
-        <header>
-            <h1>🚌 RTS Bus Predictions Assistant</h1>
-            <div id="clock" class="clock"></div>
-        </header>
+        <h1>🚌 RTS Bus Predictions Assistant</h1>
+        <div id="clock"></div>
 
-        <!-- Chat Box Section -->
-        <section class="chat-box">
+        <div class="chat-box">
             {% if chat_history %}
                 {% for item in chat_history %}
                     <div class="message {{ item.sender }}">
-                        <span class="bubble">{{ item.text | replace('\n', '<br>') | safe }}</span>
+                        {% if '🚌 Estimated times for Stop ID' in item.text %}
+                            <span class="special-message">{{ item.text }}</span>
+                        {% else %}
+                            <span class="bubble">{{ item.text | replace('\n', '<br>') | safe }}</span>
+                        {% endif %}
                     </div>
                 {% endfor %}
             {% else %}
@@ -27,16 +46,18 @@
                     <span class="bubble">Hi 👋! Enter a Stop ID (1-4 digits) to get started.</span>
                 </div>
             {% endif %}
-        </section>
+        </div>
 
-        <!-- Form Section -->
         <form class="chat-form" method="POST">
             <input type="text" name="message" placeholder="Enter Stop ID or question..." autocomplete="off" required>
             <button type="submit">Send</button>
         </form>
     </div>
 
-    <!-- JavaScript -->
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // Auto-scroll to bottom
+        const chatBox = document.querySelector(".chat-box");
+        chatBox.scrollTop = chatBox.scrollHeight;
+    </script>
 </body>
 </html>
