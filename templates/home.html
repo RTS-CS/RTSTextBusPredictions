@@ -4,10 +4,31 @@
     <meta charset="UTF-8">
     <title>RTS Text Bus Predictions</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        // Live clock
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            document.getElementById("clock").textContent = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        window.onload = updateClock;
+
+        // Auto-refresh predictions every 60 seconds
+        setInterval(() => {
+            fetch('/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(() => {
+                window.location.reload();
+            });
+        }, 60000);
+    </script>
 </head>
 <body>
     <div class="chat-container">
         <h1>🚌 RTS Bus Predictions Assistant</h1>
+        <div id="clock" style="text-align: center; font-size: 16px; color: #555; margin-top: -10px; margin-bottom: 20px;"></div>
 
         <div class="chat-box">
             {% if chat_history %}
@@ -28,9 +49,5 @@
             <button type="submit">Send</button>
         </form>
     </div>
-    <script>
-    const chatBox = document.querySelector(".chat-box");
-    chatBox.scrollTop = chatBox.scrollHeight;
-</script>
 </body>
 </html>
