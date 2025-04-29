@@ -118,7 +118,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         logger.error("Invalid API response")
         return "Invalid API response."
 
-# ========== SECTION 5: Web Chat Interface ==========
+# ========== ROUTE: WEB CHAT HOME ==========
 
 @app.route("/", methods=["GET", "POST"])
 def web_home():
@@ -129,22 +129,13 @@ def web_home():
         user_input = request.form.get("message", "").strip()
 
         if user_input:
-            # Always keep the user message (never clear user inputs)
-            session["chat_history"].append({"sender": "user", "text": user_input})
+            # Only save meaningful questions
+            if not (user_input.isdigit() and 1 <= len(user_input) <= 4):
+                session["chat_history"].append({"sender": "user", "text": user_input})
 
-            # Handle numeric Stop ID
+            # Handle numeric stop ID separately
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
-                # 🧹 Before fetching predictions, clear old bot messages
-                session["chat_history"] = [
-                    item for item in session["chat_history"] if item["sender"] == "user"
-                ]
-
-                # Now show searching status
-                session["chat_history"].append({
-                    "sender": "bot",
-                    "text": f"🔎 Searching predictions for Stop ID {user_input}..."
-                })
-
+                session["chat_history"].append({"sender": "bot", "text": f"🔎 Searching predictions for Stop ID {user_input}..."})
                 predictions = get_prediction(user_input, web_mode=True)
                 if isinstance(predictions, str):
                     session["chat_history"].append({"sender": "bot", "text": predictions})
@@ -156,11 +147,11 @@ def web_home():
                     "sender": "bot",
                     "text": (
                         "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) "
-                        "to get predictions. More features coming soon!"
+                        "to get bus predictions!"
                     )
                 })
 
-    return render_template("home.html", chat_history=session["chat_history"])
+    return render_template("home.html", chat_history=session.get("chat_history", []))
 
 # ========== SECTION 5.1: Clear Chat (Optional Utility) ==========
  
