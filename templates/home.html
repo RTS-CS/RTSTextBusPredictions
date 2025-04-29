@@ -2,92 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>RTS Text Bus Predictions</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-        }
-        h1 {
-            color: #333;
-        }
-        form {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-        }
-        input[type="text"] {
-            padding: 8px;
-            margin-right: 10px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-        }
-        button {
-            padding: 8px 15px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        .chat-container {
-            margin-top: 20px;
-            background-color: #fff;
-            border-radius: 5px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            padding: 15px;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        li {
-            padding: 8px 0;
-            border-bottom: 1px solid #eee;
-        }
-        li:last-child {
-            border-bottom: none;
-        }
-        .user {
-            font-weight: bold;
-            color: #333;
-        }
-        .bot {
-            color: #007bff;
-        }
-    </style>
+    <title>Gainesville RTS Bus Predictions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Gainesville RTS Bus Predictions</h1>
-    <form method="POST">
-        <input type="text" name="user_input" placeholder="Enter Stop ID">
-        <button type="submit">Get Predictions</button>
-    </form>
+    <div class="container">
+        <h1>Gainesville RTS Bus Chat</h1>
 
-    <div class="chat-container">
-        <h2>Chat History</h2>
-        <ul>
-            {% if chat_history %}
-                {% for item in chat_history %}
-                    <li>
-                        <strong class="{{ item.sender }}">{{ item.sender }}:</strong>
-                        {% if item.sender == 'bot' %}
-                            {{ item.message|replace('\n', '<br>')|safe }}
-                        {% else %}
-                            {{ item.message }}
-                        {% endif %}
-                    </li>
-                {% endfor %}
-            {% else %}
-                <li>No messages yet. Enter a Stop ID to get started.</li>
-            {% endif %}
-        </ul>
+        <div class="chat-box">
+            {% for msg in chat_history %}
+                <div class="message {{ msg.sender }}">{{ msg.text }}</div>
+            {% endfor %}
+        </div>
+
+        <form method="POST" class="chat-form">
+            <input type="text" name="message" placeholder="Enter Stop ID or ask a question..." autocomplete="off" required>
+            <button type="submit">Send</button>
+        </form>
     </div>
 </body>
 </html>
