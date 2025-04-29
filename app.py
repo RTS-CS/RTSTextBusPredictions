@@ -103,15 +103,15 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         due_text = "Due" if lang == "en" else "llega en menos de 1 minuto"
         direction_word = "Going toward" if lang == "en" else "dirigiéndose a"
 
-        results = []
+        grouped = {}
         for prd in predictions:
             rt = prd.get('rt', 'N/A')
             des = prd.get('des', 'N/A')
             if "/" in des:
                 des = des.replace("/", f" {direction_word} ")
+            key = f"{route_label} {rt} - {des}"
             arrival = prd.get('prdctdn', 'N/A')
 
-            arrival_text = ""
             if arrival == "DUE":
                 arrival_text = due_text
             else:
@@ -123,15 +123,22 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
                 except ValueError:
                     arrival_text = arrival
 
-            results.append(f"{route_label} {rt} - {des}: {arrival_text}")
+            if key not in grouped:
+                grouped[key] = []
+            grouped[key].append(arrival_text)
 
-        if not results:
+        if not grouped:
             return "No buses expected in the next 45 minutes."
 
+        results = [f"🚌 Estimated times for Stop ID {stop_id}:\n"]
+        for key, times in grouped.items():
+            formatted_times = ", ".join(times)
+            results.append(f"{key}: {formatted_times}")
+
         if web_mode:
-            return results  # Return a list for web display
+            return results
         else:
-            return "\n".join(results[:3])  # Return a string for SMS
+            return "\n".join(results[:3])
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
