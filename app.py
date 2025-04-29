@@ -175,7 +175,7 @@ def web_home():
         "home.html",
         chat_history=session.get("chat_history", [])
     )
-
+    
 # ========== SECTION 6: SMS Bot ==========
 @app.route("/bot", methods=["POST"])
 def bot():
