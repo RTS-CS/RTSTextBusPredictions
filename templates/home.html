@@ -13,7 +13,7 @@
             {% if chat_history %}
                 {% for item in chat_history %}
                     <div class="message {{ item.sender }}">
-                        <span class="bubble">{{ item.message | replace('\n', '<br>') | safe }}</span>
+                        <span class="bubble">{{ item.text | replace('\n', '<br>') | safe }}</span>
                     </div>
                 {% endfor %}
             {% else %}
