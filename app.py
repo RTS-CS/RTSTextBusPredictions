@@ -129,8 +129,17 @@ def web_home():
         user_input = request.form.get("message", "").strip()
 
         if user_input:
-            # Check if it is a valid Stop ID
+            # Save the user message
+            session["chat_history"].append({"sender": "user", "text": user_input})
+
+            # Handle numeric stop ID
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
+                # First: show user that search started
+                session["chat_history"].append({
+                    "sender": "bot",
+                    "text": f"🔎 Searching predictions for Stop ID {user_input}..."
+                })
+
                 predictions = get_prediction(user_input, web_mode=True)
                 if isinstance(predictions, str):
                     session["chat_history"].append({"sender": "bot", "text": predictions})
@@ -138,8 +147,7 @@ def web_home():
                     for line in predictions:
                         session["chat_history"].append({"sender": "bot", "text": line})
             else:
-                # Save non-numeric user questions
-                session["chat_history"].append({"sender": "user", "text": user_input})
+                # If user enters something else (not Stop ID)
                 session["chat_history"].append({
                     "sender": "bot",
                     "text": (
@@ -148,10 +156,7 @@ def web_home():
                     )
                 })
 
-    return render_template(
-        "home.html",
-        chat_history=session.get("chat_history", [])
-    )
+    return render_template("home.html", chat_history=session["chat_history"])
 
 # ========== SECTION 5.1: Clear Chat (Optional Utility) ==========
 
