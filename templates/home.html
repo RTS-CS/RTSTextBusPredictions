@@ -24,9 +24,13 @@
         </div>
 
         <form class="chat-form" method="POST">
-            <input type="text" name="user_input" placeholder="Enter Stop ID or question..." autocomplete="off" required>
+            <input type="text" name="message" placeholder="Enter Stop ID or question..." autocomplete="off" required>
             <button type="submit">Send</button>
         </form>
     </div>
+    <script>
+    const chatBox = document.querySelector(".chat-box");
+    chatBox.scrollTop = chatBox.scrollHeight;
+</script>
 </body>
 </html>
