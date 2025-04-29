@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>RTS Text Bus Predictions</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
     <script>
         // Live clock
         function updateClock() {
@@ -23,12 +24,23 @@
                 window.location.reload();
             });
         }, 60000);
+
+        // Clear chat history
+        function clearChat() {
+            fetch('/clear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(() => {
+                window.location.reload();
+            });
+        }
     </script>
 </head>
+
 <body>
     <div class="chat-container">
         <h1>🚌 RTS Bus Predictions Assistant</h1>
-        <div id="clock"></div>
+        <div id="clock" class="clock"></div>
 
         <div class="chat-box">
             {% if chat_history %}
@@ -48,14 +60,17 @@
             {% endif %}
         </div>
 
-        <form class="chat-form" method="POST">
+        <form class="chat-form" method="POST" action="/">
             <input type="text" name="message" placeholder="Enter Stop ID or question..." autocomplete="off" required>
-            <button type="submit">Send</button>
+            <div class="button-group">
+                <button type="submit">Send</button>
+                <button type="button" onclick="clearChat()">Clear Chat</button>
+            </div>
         </form>
     </div>
 
     <script>
-        // Auto-scroll to bottom
+        // Auto-scroll chat to bottom
         const chatBox = document.querySelector(".chat-box");
         chatBox.scrollTop = chatBox.scrollHeight;
     </script>
