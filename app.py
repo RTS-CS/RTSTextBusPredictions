@@ -1,5 +1,6 @@
 import os
 import logging
+import json
 from flask import Flask, request, render_template, session, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.twiml.voice_response import VoiceResponse, Gather
@@ -22,6 +23,20 @@ MESSAGE_LIMIT = int(os.getenv("MESSAGE_LIMIT", 8))
 
 request_counts = {}
 rate_limit_lock = Lock()
+
+opt_in_file_path = 'opted_in_users.json'
+
+def load_opted_in_users():
+    if os.path.exists(opt_in_file_path):
+        with open(opt_in_file_path, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_opted_in_users(users_dict):
+    with open(opt_in_file_path, 'w') as f:
+        json.dump(users_dict, f)
+
+opted_in_users = load_opted_in_users()
 
 # ========== LANGUAGE MESSAGES ==========
 MESSAGES = {
@@ -197,8 +212,7 @@ def refresh_predictions():
 
     return jsonify(success=False)
 
-# ========== ROUTE: TWILIO SMS BOT with OPT-IN ==========
-opted_in_users = {}  # In-memory storage for opt-in status
+# ========== ROUTE: TWILIO SMS BOT with PERSISTENT OPT-IN ==========
 
 @app.route("/bot", methods=["POST"])
 def bot():
@@ -210,28 +224,31 @@ def bot():
         response.message("Error: No sender.")
         return str(response)
 
-    # FIRST-TIME CONTACT: Prompt for opt-in
+    # FIRST-TIME CONTACT OR OPT-IN STATUS UNKNOWN
     if from_number not in opted_in_users:
         if incoming_msg == "YES":
             opted_in_users[from_number] = True
+            save_opted_in_users(opted_in_users)
             response.message("✅ You're now subscribed to RTS bus predictions! Send a Stop ID (1–4 digits) to begin.")
         elif incoming_msg == "STOP":
             opted_in_users[from_number] = False
+            save_opted_in_users(opted_in_users)
             response.message("🚫 You have opted out of RTS alerts. Reply YES anytime to subscribe again.")
         else:
             response.message("👋 Welcome to RTS Alerts! Reply YES to receive bus predictions, or STOP to opt out.")
         return str(response)
 
-    # If user opted out
-    if not opted_in_users.get(from_number, False):
+    # OPTED OUT USERS
+    if opted_in_users[from_number] is False:
         if incoming_msg == "YES":
             opted_in_users[from_number] = True
-            response.message("✅ You're now subscribed to RTS alerts! Send a Stop ID (1–4 digits) to begin.")
+            save_opted_in_users(opted_in_users)
+            response.message("✅ You're now subscribed again to RTS alerts. Send a Stop ID (1–4 digits) to begin.")
         else:
-            response.message("🚫 You're currently opted out. Reply YES to start receiving RTS bus predictions.")
+            response.message("🚫 You're currently opted out. Reply YES to opt back in.")
         return str(response)
 
-    # USER IS OPTED IN — proceed with normal logic
+    # OPTED IN USERS
     if check_rate_limit(from_number):
         if incoming_msg.isdigit() and 1 <= len(incoming_msg) <= 4:
             prediction = get_prediction(incoming_msg)
