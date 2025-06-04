@@ -114,7 +114,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         if not grouped:
             return "No buses expected in the next 45 minutes."
 
-        results = [f"🚌 Estimated times for Stop ID {stop_id}:\n"]
+        results = [f"🚌 ETA for Stop ID {stop_id}:\n"]
         for key, times in grouped.items():
             try:
                 route, destination = key.split(" - ", 1)
