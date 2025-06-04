@@ -197,23 +197,49 @@ def refresh_predictions():
 
     return jsonify(success=False)
 
-# ========== ROUTE: TWILIO SMS BOT ==========
+# ========== ROUTE: TWILIO SMS BOT with OPT-IN ==========
+opted_in_users = {}  # In-memory storage for opt-in status
+
 @app.route("/bot", methods=["POST"])
 def bot():
-    incoming_msg = request.values.get('Body', '').strip()
+    incoming_msg = request.values.get('Body', '').strip().upper()
     from_number = request.values.get('From', '')
     response = MessagingResponse()
 
     if not from_number:
         response.message("Error: No sender.")
-    elif check_rate_limit(from_number):
+        return str(response)
+
+    # FIRST-TIME CONTACT: Prompt for opt-in
+    if from_number not in opted_in_users:
+        if incoming_msg == "YES":
+            opted_in_users[from_number] = True
+            response.message("✅ You're now subscribed to RTS bus predictions! Send a Stop ID (1–4 digits) to begin.")
+        elif incoming_msg == "STOP":
+            opted_in_users[from_number] = False
+            response.message("🚫 You have opted out of RTS alerts. Reply YES anytime to subscribe again.")
+        else:
+            response.message("👋 Welcome to RTS Alerts! Reply YES to receive bus predictions, or STOP to opt out.")
+        return str(response)
+
+    # If user opted out
+    if not opted_in_users.get(from_number, False):
+        if incoming_msg == "YES":
+            opted_in_users[from_number] = True
+            response.message("✅ You're now subscribed to RTS alerts! Send a Stop ID (1–4 digits) to begin.")
+        else:
+            response.message("🚫 You're currently opted out. Reply YES to start receiving RTS bus predictions.")
+        return str(response)
+
+    # USER IS OPTED IN — proceed with normal logic
+    if check_rate_limit(from_number):
         if incoming_msg.isdigit() and 1 <= len(incoming_msg) <= 4:
             prediction = get_prediction(incoming_msg)
             response.message(prediction)
         else:
-            response.message("Send a valid 1–4 digit stop number.")
+            response.message("❗ Send a valid 1–4 digit Stop ID number.")
     else:
-        response.message("You’ve reached the limit of 8 interactions per hour.")
+        response.message("⚠️ You’ve reached the limit of 8 interactions per hour. Try again later.")
 
     return str(response)
 
