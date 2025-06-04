@@ -51,6 +51,21 @@ MESSAGES = {
 
 # ========== SECTION 3: Helper Functions ==========
 
+def check_rate_limit(phone_number):
+    now = datetime.utcnow()
+    with rate_limit_lock:
+        if phone_number not in request_counts:
+            request_counts[phone_number] = []
+        request_counts[phone_number] = [
+            timestamp for timestamp in request_counts[phone_number]
+            if now - timestamp < timedelta(hours=1)
+        ]
+        if len(request_counts[phone_number]) < MESSAGE_LIMIT:
+            request_counts[phone_number].append(now)
+            return True  # Allowed
+        else:
+            return False  # Limit reached
+
 def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str | list[str]:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
@@ -119,7 +134,6 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         return "Invalid API response."
 
 # ========== ROUTE: WEB CHAT HOME ==========
-
 @app.route("/", methods=["GET", "POST"])
 def web_home():
     if "chat_history" not in session:
@@ -129,11 +143,9 @@ def web_home():
         user_input = request.form.get("message", "").strip()
 
         if user_input:
-            # Only save meaningful questions
             if not (user_input.isdigit() and 1 <= len(user_input) <= 4):
                 session["chat_history"].append({"sender": "user", "text": user_input})
 
-            # Handle numeric stop ID separately
             if user_input.isdigit() and 1 <= len(user_input) <= 4:
                 session["chat_history"].append({"sender": "bot", "text": f"🔎 Searching predictions for Stop ID {user_input}..."})
                 predictions = get_prediction(user_input, web_mode=True)
@@ -158,7 +170,7 @@ def web_home():
 def clear_chat():
     session.pop("chat_history", None)
     return ("", 204)
- 
+
 # ========== ROUTE: BACKGROUND PREDICTION REFRESH ==========
 @app.route("/refresh", methods=["POST"])
 def refresh_predictions():
@@ -187,19 +199,19 @@ def bot():
     incoming_msg = request.values.get('Body', '').strip()
     from_number = request.values.get('From', '')
     response = MessagingResponse()
+
     if not from_number:
         response.message("Error: No sender.")
     elif check_rate_limit(from_number):
         if incoming_msg.isdigit() and 1 <= len(incoming_msg) <= 4:
-            response.message(get_prediction(incoming_msg))
+            prediction = get_prediction(incoming_msg)
+            response.message(prediction)
         else:
-            response.message("Send a valid 1-4 digit stop number.")
+            response.message("Send a valid 1–4 digit stop number.")
     else:
         response.message("You’ve reached the limit of 8 interactions per hour.")
-    return str(response)
 
-# ========== ROUTE: TWILIO VOICE BOT ==========
-# (Voice support not modified – insert previous voice routes here.)
+    return str(response)
 
 # ========== RUN APP ==========
 if __name__ == "__main__":
