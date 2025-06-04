@@ -116,10 +116,14 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
 
         results = [f"🚌 Estimated times for Stop ID {stop_id}:\n"]
         for key, times in grouped.items():
-            if len(times) == 1:
-                results.append(f"{key}: {times[0]}")
-            else:
-                results.append(f"{key}: {', '.join(times[:-1])} and {times[-1]}")
+            try:
+                route, destination = key.split(" - ", 1)
+            except ValueError:
+                route = key
+                destination = ""
+
+            times_text = ', '.join(times[:-1]) + f" and {times[-1]}" if len(times) > 1 else times[0]
+            results.append(f"{route}\n{destination}\n{times_text}\n")
 
         if web_mode:
             return results
