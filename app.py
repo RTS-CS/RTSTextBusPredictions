@@ -128,7 +128,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         if web_mode:
             return results
         else:
-            return "\n".join(results[:3])
+            return "\n".join(results)
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
