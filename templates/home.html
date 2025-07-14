@@ -12,19 +12,19 @@
     <h1>🚌 RTS Bus Predictions Assistant</h1>
     <div id="clock" class="clock"></div>
 
-    <div class="chat-box">
-      <div class="message bot">
-        <span class="bubble">✅ Test: The page is rendering HTML correctly!</span>
+<div class="chat-box">
+  {% if chat_history %}
+    {% for item in chat_history %}
+      <div class="message {{ item.sender }}">
+        <span class="bubble">{{ item.text | replace('\n', '<br>') | safe }}</span>
       </div>
-
-      {% if chat_history %}
-        {% for item in chat_history %}
-          <div class="message {{ item.sender }}">
-            <span class="bubble">{{ item.text | replace('\n', '<br>') | safe }}</span>
-          </div>
-        {% endfor %}
-      {% endif %}
+    {% endfor %}
+  {% else %}
+    <div class="message bot">
+      <span class="bubble">Hi 👋! Enter a Stop ID (1–4 digits) to get started.</span>
     </div>
+  {% endif %}
+</div>
 
     <form class="chat-form" method="POST" action="/">
       <input type="text" name="message" placeholder="Enter Stop ID or question..." autocomplete="off" required />
