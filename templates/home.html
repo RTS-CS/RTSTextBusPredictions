@@ -46,3 +46,16 @@
       padding: 1rem;
       display: flex;
       flex-direction: column;
+<div class="chat-box">
+  <div class="message bot">
+    <span class="bubble">✅ Test: The page is rendering HTML correctly!</span>
+  </div>
+
+  {% if chat_history %}
+    {% for item in chat_history %}
+      <div class="message {{ item.sender }}">
+        <span class="bubble">{{ item.text }}</span>
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>
