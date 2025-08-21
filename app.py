@@ -3,11 +3,9 @@ import logging
 import json
 from flask import Flask, request, render_template, session, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
-from twilio.twiml.voice_response import VoiceResponse, Gather
 from datetime import datetime, timedelta
 import requests
 from threading import Lock
-import re
 
 # ========== CONFIGURATION & INITIALIZATION ==========
 app = Flask(__name__)
@@ -27,18 +25,35 @@ rate_limit_lock = Lock()
 opt_in_file_path = 'opted_in_users.json'
 
 def load_opted_in_users():
+    """Load opt-in map from JSON; create empty file if missing (no overwrite)."""
     if os.path.exists(opt_in_file_path):
-        with open(opt_in_file_path, 'r') as f:
-            return json.load(f)
+        try:
+            with open(opt_in_file_path, 'r') as f:
+                data = json.load(f)
+                # Ensure keys are strings
+                return {str(k): bool(v) for k, v in data.items()}
+        except Exception as e:
+            logger.error(f"Failed to read {opt_in_file_path}: {e}")
+            return {}
+    # Create an empty file so future saves succeed, but return empty mapping
+    try:
+        with open(opt_in_file_path, 'w') as f:
+            json.dump({}, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to create {opt_in_file_path}: {e}")
     return {}
 
 def save_opted_in_users(users_dict):
-    with open(opt_in_file_path, 'w') as f:
-        json.dump(users_dict, f)
+    """Persist opt-in map safely."""
+    try:
+        with open(opt_in_file_path, 'w') as f:
+            json.dump(users_dict, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save {opt_in_file_path}: {e}")
 
 opted_in_users = load_opted_in_users()
 
-# ========== LANGUAGE MESSAGES ==========
+# ========== LANGUAGE MESSAGES (web chat only) ==========
 MESSAGES = {
     "en": {
         "welcome": "Press 1 for English, Dos para Español.",
@@ -64,36 +79,35 @@ MESSAGES = {
     }
 }
 
-# ========== SECTION 3: Helper Functions ==========
-
+# ========== Helper: Rate Limiting ==========
 def check_rate_limit(phone_number):
     now = datetime.utcnow()
     with rate_limit_lock:
         if phone_number not in request_counts:
             request_counts[phone_number] = []
+        # keep only last 60 minutes of timestamps
         request_counts[phone_number] = [
-            timestamp for timestamp in request_counts[phone_number]
-            if now - timestamp < timedelta(hours=1)
+            t for t in request_counts[phone_number] if now - t < timedelta(hours=1)
         ]
         if len(request_counts[phone_number]) < MESSAGE_LIMIT:
             request_counts[phone_number].append(now)
-            return True  # Allowed
-        else:
-            return False  # Limit reached
+            return True
+        return False
 
+# ========== Helper: Predictions ==========
 def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> str | list[str]:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
     params = {"key": API_KEY, "rtpidatafeed": RTPIDATAFEED, "stpid": padded_stop_id, "format": "json", "max": 99}
 
     try:
-        response = requests.get(BASE_URL, params=params, timeout=5)
-        response.raise_for_status()
-        data = response.json()
+        r = requests.get(BASE_URL, params=params, timeout=5)
+        r.raise_for_status()
+        data = r.json()
         if "bustime-response" not in data or "prd" not in data["bustime-response"]:
             return "No predictions available for this stop."
 
-        predictions = data["bustime-response"]["prd"]
+        predictions = data["bustime-response"]["prd"] or []
         if not predictions:
             return "No predictions available for this stop."
 
@@ -117,37 +131,31 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
                 try:
                     arrival_min = int(arrival)
                     if web_mode and arrival_min > 45:
+                        # suppress very long waits in web list mode
                         continue
                     arrival_text = f"{arrival_min} {minutes_label}"
-                except ValueError:
+                except (ValueError, TypeError):
                     arrival_text = arrival
 
-            if key not in grouped:
-                grouped[key] = []
-            grouped[key].append(arrival_text)
+            grouped.setdefault(key, []).append(arrival_text)
 
         if not grouped:
             return "No buses expected in the next 45 minutes."
 
         results = [f"🚌 ETA for Stop ID {stop_id}:\n"]
         for key, times in grouped.items():
-            try:
+            if " - " in key:
                 route, destination = key.split(" - ", 1)
-            except ValueError:
-                route = key
-                destination = ""
-
+            else:
+                route, destination = key, ""
             times_text = ', '.join(times[:-1]) + f" and {times[-1]}" if len(times) > 1 else times[0]
             results.append(f"{route}\n{destination}\n{times_text}\n")
 
-        if web_mode:
-            return results
-        else:
-            return "\n".join(results)
+        return results if web_mode else "\n".join(results)
 
     except requests.RequestException as e:
         logger.error(f"API request failed: {e}")
-        return f"Network error: {e}"
+        return "Network error. Try again."
     except ValueError:
         logger.error("Invalid API response")
         return "Invalid API response."
@@ -159,7 +167,7 @@ def web_home():
         session["chat_history"] = []
 
     if request.method == "POST":
-        user_input = request.form.get("message", "").strip()
+        user_input = (request.form.get("message", "") or "").strip()
 
         if user_input:
             if not (user_input.isdigit() and 1 <= len(user_input) <= 4):
@@ -176,10 +184,7 @@ def web_home():
             else:
                 session["chat_history"].append({
                     "sender": "bot",
-                    "text": (
-                        "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) "
-                        "to get bus predictions!"
-                    )
+                    "text": "🤖 I'm a simple bus assistant! Please enter a numeric Stop ID (1–4 digits) to get bus predictions!"
                 })
 
     return render_template("home.html", chat_history=session.get("chat_history", []))
@@ -196,13 +201,10 @@ def refresh_predictions():
     if not session.get("chat_history"):
         return jsonify(success=False)
 
-    last_user_input = next(
-        (entry["text"] for entry in reversed(session["chat_history"]) if entry["sender"] == "user"), None
-    )
-
+    last_user_input = next((e["text"] for e in reversed(session["chat_history"]) if e["sender"] == "user"), None)
     if last_user_input and last_user_input.isdigit():
         predictions = get_prediction(last_user_input, web_mode=True)
-        session["chat_history"] = [msg for msg in session["chat_history"] if msg["sender"] != "bot"]
+        session["chat_history"] = [m for m in session["chat_history"] if m["sender"] != "bot"]
         if isinstance(predictions, str):
             session["chat_history"].append({"sender": "bot", "text": predictions})
         else:
@@ -212,53 +214,55 @@ def refresh_predictions():
 
     return jsonify(success=False)
 
-# ========== ROUTE: TWILIO SMS BOT with PERSISTENT OPT-IN ==========
-
+# ========== ROUTE: TWILIO SMS BOT (COST-OPTIMIZED, PRESERVES OPT-INS) ==========
 @app.route("/bot", methods=["POST"])
 def bot():
-    incoming_msg = request.values.get('Body', '').strip().upper()
-    from_number = request.values.get('From', '')
-    response = MessagingResponse()
+    incoming_msg_raw = request.values.get('Body', '')
+    incoming_msg = (incoming_msg_raw or '').strip()
+    incoming_up = incoming_msg.upper()
+    from_number = (request.values.get('From', '') or '').strip()
+    resp = MessagingResponse()
 
     if not from_number:
-        response.message("Error: No sender.")
-        return str(response)
+        resp.message("Error: No sender.")
+        return str(resp)
 
-    # FIRST-TIME CONTACT OR OPT-IN STATUS UNKNOWN
-    if from_number not in opted_in_users:
-        if incoming_msg == "YES":
-            opted_in_users[from_number] = True
-            save_opted_in_users(opted_in_users)
-            response.message("✅ You're now subscribed to RTS bus predictions! Send a Stop ID (1–4 digits) to begin.")
-        elif incoming_msg == "STOP":
-            opted_in_users[from_number] = False
-            save_opted_in_users(opted_in_users)
-            response.message("🚫 You have opted out of RTS alerts. Reply YES anytime to subscribe again.")
-        else:
-            response.message("👋 Welcome to RTS Alerts! Reply YES to receive bus predictions, or STOP to opt out.")
-        return str(response)
+    # ---- ALWAYS HONOR KEYWORDS (CTIA/TCPA) ----
+    if incoming_up in {"STOP", "UNSUBSCRIBE", "END", "CANCEL", "QUIT"}:
+        opted_in_users[from_number] = False
+        save_opted_in_users(opted_in_users)
+        resp.message("You’ve opted out of RTS Alerts. Reply START or YES to opt in again.")
+        return str(resp)
 
-    # OPTED OUT USERS
-    if opted_in_users[from_number] is False:
-        if incoming_msg == "YES":
-            opted_in_users[from_number] = True
-            save_opted_in_users(opted_in_users)
-            response.message("✅ You're now subscribed again to RTS alerts. Send a Stop ID (1–4 digits) to begin.")
-        else:
-            response.message("🚫 You're currently opted out. Reply YES to opt back in.")
-        return str(response)
+    if incoming_up in {"START", "YES"}:
+        opted_in_users[from_number] = True
+        save_opted_in_users(opted_in_users)
+        resp.message("Subscribed. Send a Stop ID (1–4 digits).")
+        return str(resp)
 
-    # OPTED IN USERS
-    if check_rate_limit(from_number):
-        if incoming_msg.isdigit() and 1 <= len(incoming_msg) <= 4:
-            prediction = get_prediction(incoming_msg)
-            response.message(prediction)
-        else:
-            response.message("❗ Send a valid 1–4 digit Stop ID number.")
-    else:
-        response.message("⚠️ You’ve reached the limit of 8 interactions per hour. Try again later.")
+    # ---- OPTED OUT: remind and exit (no other messages) ----
+    if opted_in_users.get(from_number, True) is False:
+        resp.message("You’re opted out. Reply START or YES to subscribe again.")
+        return str(resp)
 
-    return str(response)
+    # ---- NO FORCED WELCOME/OPT-IN FOR NEW NUMBERS ----
+    # Unknown numbers can query directly (cost saver).
+
+    # ---- RATE LIMIT ----
+    if not check_rate_limit(from_number):
+        resp.message("Limit reached (8/hour). Try later.")
+        return str(resp)
+
+    # ---- HANDLE STOP ID ----
+    msg_clean = incoming_up.replace(' ', '')
+    if msg_clean.isdigit() and 1 <= len(msg_clean) <= 4:
+        prediction = get_prediction(msg_clean)
+        resp.message(prediction)
+        return str(resp)
+
+    # ---- INVALID INPUT ----
+    resp.message("Send a valid Stop ID (1–4 digits).")
+    return str(resp)
 
 # ========== RUN APP ==========
 if __name__ == "__main__":
