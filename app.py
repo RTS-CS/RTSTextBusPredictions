@@ -214,7 +214,13 @@ def refresh_predictions():
 
     return jsonify(success=False)
 
-# ========== ROUTE: TWILIO SMS BOT (COST-OPTIMIZED, PRESERVES OPT-INS) ==========
+# ========== ROUTE: TWILIO SMS BOT (COST-OPTIMIZED, PRESERVES OPT-INS + PAGINATION) ==========
+from time import time
+
+# Session store for paginated predictions: { from_number: {"pages": [...], "idx": 1, "ts": 1234567890} }
+more_sessions = {}
+MORE_TIMEOUT_SEC = 10 * 60  # 10 minutes window to request MORE
+
 @app.route("/bot", methods=["POST"])
 def bot():
     incoming_msg_raw = request.values.get('Body', '')
@@ -223,46 +229,139 @@ def bot():
     from_number = (request.values.get('From', '') or '').strip()
     resp = MessagingResponse()
 
-    if not from_number:
-        resp.message("Error: No sender.")
+    # --- helpers to keep replies in 1 SMS segment (GSM-7 ~160 chars) ---
+    def _sanitize_ascii(s: str) -> str:
+        repl = {
+            "\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"',
+            "\u2013": "-", "\u2014": "-", "\u2026": "...",
+            "\u00A0": " ", "\u200B": ""  # nbsp, zero-width
+        }
+        for k, v in repl.items():
+            s = s.replace(k, v)
+        # Drop any remaining non-ASCII just in case
+        return ''.join(ch if ord(ch) < 128 else ' ' for ch in s)
+
+    def _shorten_to_160(s: str) -> str:
+        s = _sanitize_ascii(s).strip()
+        return s if len(s) <= 160 else (s[:157].rstrip() + "...")
+
+    def _make_pages(full_text: str, headroom: int = 160):
+        """
+        Split long predictions into <= headroom char pages at word boundaries.
+        Adds a short suffix " Reply MORE for next." to first n-1 pages (fits within 160).
+        """
+        text = _sanitize_ascii(full_text).strip()
+        words = text.split()
+        pages, cur = [], ""
+        # Reserve space for suffix on non-final pages
+        suffix = " Reply MORE for next."
+        for w in words:
+            candidate = (cur + " " + w).strip()
+            limit = headroom if cur == "" else headroom
+            # try to pack words; if adding this word would exceed limit (with suffix if not final), cut page
+            # We don't know final page yet; we build tentatively, then append suffix later where needed
+            if len(candidate) > limit:
+                pages.append(cur)
+                cur = w
+            else:
+                cur = candidate
+        if cur:
+            pages.append(cur)
+
+        # If only one page, return as-is
+        if len(pages) <= 1:
+            return [pages[0]]
+
+        # Rebuild with suffix on all but last, ensuring <=160 by trimming if needed
+        final_pages = []
+        for i, p in enumerate(pages):
+            if i < len(pages) - 1:
+                base = p
+                # Add suffix, trimming if needed to keep <=160
+                needed = base + suffix
+                if len(needed) <= 160:
+                    final_pages.append(needed)
+                else:
+                    # Trim base to fit suffix
+                    trim_len = 160 - len(suffix)
+                    final_pages.append((base[:trim_len].rstrip()) + suffix)
+            else:
+                final_pages.append(_shorten_to_160(p))
+        return final_pages
+
+    def send_short(text: str):
+        resp.message(_shorten_to_160(text))
         return str(resp)
+
+    # --- MORE flow: deliver next page if session exists and not expired ---
+    def handle_more():
+        sess = more_sessions.get(from_number)
+        now = time()
+        if not sess or (now - sess.get("ts", 0)) > MORE_TIMEOUT_SEC:
+            more_sessions.pop(from_number, None)
+            return send_short("No more results. Send a Stop ID (1-4 digits).")
+        pages = sess["pages"]
+        idx = sess["idx"]
+        if idx >= len(pages):
+            more_sessions.pop(from_number, None)
+            return send_short("Done. Send another Stop ID.")
+        # send next page
+        msg = pages[idx]
+        sess["idx"] = idx + 1
+        sess["ts"] = now
+        return send_short(msg)
+
+    if not from_number:
+        return send_short("Error: No sender.")
 
     # ---- ALWAYS HONOR KEYWORDS (CTIA/TCPA) ----
     if incoming_up in {"STOP", "UNSUBSCRIBE", "END", "CANCEL", "QUIT"}:
         opted_in_users[from_number] = False
         save_opted_in_users(opted_in_users)
-        resp.message("You’ve opted out of RTS Alerts. Reply START or YES to opt in again.")
-        return str(resp)
+        more_sessions.pop(from_number, None)
+        return send_short("You have opted out of RTS. Reply START or YES to rejoin.")
 
     if incoming_up in {"START", "YES"}:
         opted_in_users[from_number] = True
         save_opted_in_users(opted_in_users)
-        resp.message("Subscribed. Send a Stop ID (1–4 digits).")
-        return str(resp)
+        more_sessions.pop(from_number, None)
+        return send_short("Subscribed. Send Stop ID (1-4 digits).")
 
     # ---- OPTED OUT: remind and exit (no other messages) ----
     if opted_in_users.get(from_number, True) is False:
-        resp.message("You’re opted out. Reply START or YES to subscribe again.")
-        return str(resp)
+        return send_short("Opted out. Reply START or YES to rejoin.")
 
     # ---- NO FORCED WELCOME/OPT-IN FOR NEW NUMBERS ----
     # Unknown numbers can query directly (cost saver).
 
     # ---- RATE LIMIT ----
     if not check_rate_limit(from_number):
-        resp.message("Limit reached (8/hour). Try later.")
-        return str(resp)
+        return send_short("Limit reached (8/hr). Try later.")
+
+    # ---- MORE pagination request ----
+    if incoming_up == "MORE":
+        return handle_more()
 
     # ---- HANDLE STOP ID ----
     msg_clean = incoming_up.replace(' ', '')
     if msg_clean.isdigit() and 1 <= len(msg_clean) <= 4:
-        prediction = get_prediction(msg_clean)
-        resp.message(prediction)
-        return str(resp)
+        # Get full prediction text (could be long for transfer stations)
+        full = get_prediction(msg_clean)
+
+        # Build <=160-char pages; first page includes "Reply MORE for next." when needed
+        pages = _make_pages(full, headroom=160)
+
+        # Start a session if multiple pages
+        if len(pages) > 1:
+            more_sessions[from_number] = {"pages": pages, "idx": 1, "ts": time()}
+        else:
+            more_sessions.pop(from_number, None)
+
+        return send_short(pages[0])
 
     # ---- INVALID INPUT ----
-    resp.message("Send a valid Stop ID (1–4 digits).")
-    return str(resp)
+    return send_short("Invalid. Send Stop ID (1-4 digits).")
+
 
 # ========== RUN APP ==========
 if __name__ == "__main__":
