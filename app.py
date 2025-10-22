@@ -42,7 +42,7 @@ def send_clicksend_sms(to, message):
             timeout=10
         )
         r.raise_for_status()
-        logger.info(f"Sent SMS to {to}: {message[:60]}...")
+        logger.info(f"✅ Sent SMS to {to}: {message[:60]}...")
         return r.json()
     except Exception as e:
         logger.error(f"ClickSend send failed: {e}")
@@ -150,7 +150,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
         logger.error("Invalid API response")
         return "Invalid API response."
 
-# ========== WEB CHAT (unchanged) ==========
+# ========== WEB CHAT ==========
 @app.route("/", methods=["GET", "POST"])
 def web_home():
     if "chat_history" not in session:
@@ -198,7 +198,7 @@ def refresh_predictions():
         return jsonify(success=True)
     return jsonify(success=False)
 
-# ========== SMS LOGIC ==========
+# ========== SMS HANDLER ==========
 more_sessions = {}
 MORE_TIMEOUT_SEC = 10 * 60
 
@@ -288,7 +288,7 @@ def build_reply_text(from_number: str, incoming_text: str) -> (str, bool):
         return (pages[0], True)
     return ("Invalid. Send Stop ID (1-4 digits).", True)
 
-# ========== UNIFIED WEBHOOK FOR CLICKSEND ==========
+# ========== UNIFIED WEBHOOK ==========
 @app.route("/bot", methods=["POST"])
 def bot():
     data = request.get_json(silent=True) or {}
@@ -305,6 +305,19 @@ def bot():
         send_clicksend_sms(from_number, reply_text)
 
     return jsonify({"status": "ok"}), 200
+
+# ========== TEST CLICKSend CONNECTION ==========
+@app.route("/test_send")
+def test_send():
+    to = request.args.get("to")
+    msg = request.args.get("msg", "RTS Test message ✅")
+    if not to:
+        return "Add ?to=+1XXXXXXXXXX to the URL", 400
+
+    result = send_clicksend_sms(to, msg)
+    if not result:
+        return "❌ Failed to send message. Check your ClickSend credentials.", 500
+    return jsonify(result)
 
 # ========== RUN APP ==========
 if __name__ == "__main__":
