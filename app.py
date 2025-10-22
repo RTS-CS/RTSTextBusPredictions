@@ -288,22 +288,36 @@ def build_reply_text(from_number: str, incoming_text: str) -> (str, bool):
         return (pages[0], True)
     return ("Invalid. Send Stop ID (1-4 digits).", True)
 
-# ========== UNIFIED WEBHOOK ==========
+# ========== UNIFIED WEBHOOK FOR CLICKSEND (DEBUG) ==========
 @app.route("/bot", methods=["POST"])
 def bot():
     data = request.get_json(silent=True) or {}
     from_number = (data.get("from") or data.get("From") or "").strip()
     body = (data.get("body") or data.get("Body") or "").strip()
 
+    logger.info("===== INBOUND SMS RECEIVED =====")
+    logger.info(f"Raw data: {json.dumps(data, indent=2)}")
+    logger.info(f"From: {from_number}, Body: {body}")
+
     if not from_number:
+        logger.error("❌ Missing 'from' number in inbound JSON.")
         return jsonify({"reply": "Error: No sender.", "send": False}), 200
 
     reply_text, should_send = build_reply_text(from_number, body)
-    logger.info(f"SMS from {from_number}: {body} -> {reply_text}")
+    logger.info(f"Processed reply: {reply_text} | should_send={should_send}")
 
+    result = None
     if should_send and from_number and reply_text:
-        send_clicksend_sms(from_number, reply_text)
+        try:
+            logger.info(f"Attempting to send reply via ClickSend to {from_number}...")
+            result = send_clicksend_sms(from_number, reply_text)
+            logger.info(f"ClickSend API response: {json.dumps(result, indent=2)}")
+        except Exception as e:
+            logger.error(f"❌ ClickSend send failed: {e}")
+    else:
+        logger.warning("Skipped sending (should_send=False or missing data).")
 
+    logger.info("===== END INBOUND SMS =====")
     return jsonify({"status": "ok"}), 200
 
 # ========== TEST CLICKSend CONNECTION ==========
