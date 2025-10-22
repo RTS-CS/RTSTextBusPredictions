@@ -22,7 +22,7 @@ MESSAGE_LIMIT = int(os.getenv("MESSAGE_LIMIT", 8))
 
 request_counts = {}
 rate_limit_lock = Lock()
-opt_in_file_path = 'opted_in_users.json'
+opt_in_file_path = "opted_in_users.json"
 
 # ========== CLICKSend OUTBOUND HELPER ==========
 def send_clicksend_sms(to, message):
@@ -39,7 +39,7 @@ def send_clicksend_sms(to, message):
             "https://rest.clicksend.com/v3/sms/send",
             json=payload,
             auth=(CLICKSEND_USERNAME, CLICKSEND_API_KEY),
-            timeout=10
+            timeout=10,
         )
         r.raise_for_status()
         logger.info(f"✅ Sent SMS to {to}: {message[:60]}...")
@@ -52,14 +52,14 @@ def send_clicksend_sms(to, message):
 def load_opted_in_users():
     if os.path.exists(opt_in_file_path):
         try:
-            with open(opt_in_file_path, 'r') as f:
+            with open(opt_in_file_path, "r") as f:
                 data = json.load(f)
                 return {str(k): bool(v) for k, v in data.items()}
         except Exception as e:
             logger.error(f"Failed to read {opt_in_file_path}: {e}")
             return {}
     try:
-        with open(opt_in_file_path, 'w') as f:
+        with open(opt_in_file_path, "w") as f:
             json.dump({}, f, indent=2)
     except Exception as e:
         logger.error(f"Failed to create {opt_in_file_path}: {e}")
@@ -67,7 +67,7 @@ def load_opted_in_users():
 
 def save_opted_in_users(users_dict):
     try:
-        with open(opt_in_file_path, 'w') as f:
+        with open(opt_in_file_path, "w") as f:
             json.dump(users_dict, f, indent=2)
     except Exception as e:
         logger.error(f"Failed to save {opt_in_file_path}: {e}")
@@ -80,7 +80,9 @@ def check_rate_limit(phone_number: str) -> bool:
     with rate_limit_lock:
         if phone_number not in request_counts:
             request_counts[phone_number] = []
-        request_counts[phone_number] = [t for t in request_counts[phone_number] if now - t < timedelta(hours=1)]
+        request_counts[phone_number] = [
+            t for t in request_counts[phone_number] if now - t < timedelta(hours=1)
+        ]
         if len(request_counts[phone_number]) < MESSAGE_LIMIT:
             request_counts[phone_number].append(now)
             return True
@@ -90,7 +92,13 @@ def check_rate_limit(phone_number: str) -> bool:
 def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mode: bool = False) -> Union[str, list]:
     logger.info(f"Fetching prediction for stop_id={stop_id}, route_id={route_id}, lang={lang}, web_mode={web_mode}")
     padded_stop_id = str(stop_id).zfill(4)
-    params = {"key": API_KEY, "rtpidatafeed": RTPIDATAFEED, "stpid": padded_stop_id, "format": "json", "max": 99}
+    params = {
+        "key": API_KEY,
+        "rtpidatafeed": RTPIDATAFEED,
+        "stpid": padded_stop_id,
+        "format": "json",
+        "max": 99,
+    }
 
     try:
         r = requests.get(BASE_URL, params=params, timeout=5)
@@ -110,12 +118,12 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
 
         grouped = {}
         for prd in predictions:
-            rt = prd.get('rt', 'N/A')
-            des = prd.get('des', 'N/A')
+            rt = prd.get("rt", "N/A")
+            des = prd.get("des", "N/A")
             if "/" in des:
                 des = des.replace("/", f" {direction_word} ")
             key = f"{route_label} {rt} - {des}"
-            arrival = prd.get('prdctdn', 'N/A')
+            arrival = prd.get("prdctdn", "N/A")
 
             if arrival == "DUE":
                 arrival_text = due_text
@@ -138,7 +146,7 @@ def get_prediction(stop_id: str, route_id: str = None, lang: str = "en", web_mod
                 route, destination = key.split(" - ", 1)
             else:
                 route, destination = key, ""
-            times_text = ', '.join(times[:-1]) + f" and {times[-1]}" if len(times) > 1 else times[0]
+            times_text = ", ".join(times[:-1]) + f" and {times[-1]}" if len(times) > 1 else times[0]
             results.append(f"{route}\n{destination}\n{times_text}\n")
 
         return results if web_mode else "\n".join(results)
@@ -206,7 +214,7 @@ def _sanitize_ascii(s: str) -> str:
     repl = {"\u2018": "'", "\u2019": "'", "\u201C": '"', "\u201D": '"', "\u2013": "-", "\u2014": "-", "\u2026": "...", "\u00A0": " ", "\u200B": ""}
     for k, v in repl.items():
         s = s.replace(k, v)
-    return ''.join(ch if ord(ch) < 128 else ' ' for ch in s)
+    return "".join(ch if ord(ch) < 128 else " " for ch in s)
 
 def _shorten_to_160(s: str) -> str:
     s = _sanitize_ascii(s).strip()
@@ -277,7 +285,7 @@ def build_reply_text(from_number: str, incoming_text: str) -> (str, bool):
         return ("Limit reached (8/hr). Try later.", True)
     if incoming_up == "MORE":
         return (_shorten_to_160(_handle_more(from_number)), True)
-    msg_clean = incoming_up.replace(' ', '')
+    msg_clean = incoming_up.replace(" ", "")
     if msg_clean.isdigit() and 1 <= len(msg_clean) <= 4:
         full = get_prediction(msg_clean)
         pages = _make_pages(full, headroom=160)
@@ -288,19 +296,27 @@ def build_reply_text(from_number: str, incoming_text: str) -> (str, bool):
         return (pages[0], True)
     return ("Invalid. Send Stop ID (1-4 digits).", True)
 
-# ========== UNIFIED WEBHOOK FOR CLICKSEND (DEBUG) ==========
+# ========== UNIFIED WEBHOOK FOR CLICKSEND (HYBRID JSON+FORM) ==========
 @app.route("/bot", methods=["POST"])
 def bot():
-    data = request.get_json(silent=True) or {}
-    from_number = (data.get("from") or data.get("From") or "").strip()
-    body = (data.get("body") or data.get("Body") or "").strip()
+    data = request.get_json(silent=True)
+    from_number, body = None, None
+
+    if data:
+        logger.info("Inbound format: JSON")
+        from_number = (data.get("from") or data.get("From") or "").strip()
+        body = (data.get("body") or data.get("Body") or "").strip()
+    else:
+        logger.info("Inbound format: FORM-ENCODED")
+        from_number = (request.form.get("from") or request.values.get("from") or "").strip()
+        body = (request.form.get("body") or request.values.get("body") or "").strip()
 
     logger.info("===== INBOUND SMS RECEIVED =====")
-    logger.info(f"Raw data: {json.dumps(data, indent=2)}")
     logger.info(f"From: {from_number}, Body: {body}")
+    logger.info(f"Raw form fields: {dict(request.form)}")
 
     if not from_number:
-        logger.error("❌ Missing 'from' number in inbound JSON.")
+        logger.error("❌ Missing 'from' number in inbound payload.")
         return jsonify({"reply": "Error: No sender.", "send": False}), 200
 
     reply_text, should_send = build_reply_text(from_number, body)
